@@ -110,8 +110,9 @@ repository in nessuna forma.
 
 ## Convenzioni
 
-Codice, commenti, messaggi di commit e testi di issue in **inglese**.
-Documentazione, file di dati e discussione in **italiano**.
+Codice, commenti e messaggi di commit in **inglese**.
+Documentazione, file di dati, testi di issue e discussione in **italiano**: la
+mappa wayfinder e i suoi ticket sono discussione, e così sono sempre stati scritti.
 
 Test prima dell'implementazione. Un test che fallisce se la logica si rompe,
 niente framework e niente fixture elaborate. Enumera i casi degeneri prima di
