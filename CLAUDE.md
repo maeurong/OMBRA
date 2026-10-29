@@ -5,9 +5,11 @@ riproducibile e citabile. Alternativa libera a ENVI-met.
 
 ## Dove stanno le decisioni
 
-**Le decisioni di progetto non sono nel codice.** Vivono nella mappa wayfinder,
-issue **#1** di `maeurong/CLIMESH`, con i ticket come sub-issue. Prima di
-rispondere a una domanda di progetto, leggila: `gh issue view 1`. La risposta a
+**Le decisioni di progetto non sono nel codice.** Vivono nelle mappe wayfinder
+di `maeurong/CLIMESH`, con i ticket come sub-issue: la **#1** per il nucleo
+(chiusa), la **#29** per la catena radiativa fino a Tmrt e UTCI (aperta). Prima di
+rispondere a una domanda di progetto, leggi quella pertinente: `gh issue view 1`,
+`gh issue view 29`. La risposta a
 un ticket chiuso sta nel suo commento di risoluzione, non nella mappa, che ne
 tiene solo il sunto.
 
