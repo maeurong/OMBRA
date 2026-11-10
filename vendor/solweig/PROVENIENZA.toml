@@ -6,9 +6,9 @@
 # controllo senza che nessuno se ne accorga.
 
 upstream = "UMEP-dev/solweig"
-commit = "02246ab71a3a8b127d740dde9640449ee9d558ff"
-tag_vicino = "v0.1.0b95"
-data_presa = "2026-09-01"
+commit = "c31c5758236078b6b5f7bc9a931e2fce264bfc88"
+tag_vicino = "v0.1.0b98"
+data_presa = "2026-11-10"
 licenza = "GPL-3.0"
 percorso_sorgente = "rust/src"
 
@@ -36,7 +36,7 @@ scelto UTCI: ne esiste un solo polinomio autoritativo.
 """
 
 [cosa_e_stato_tolto]
-involucri_python = 10
+involucri_python = 16
 nota = """
 Da `utci.rs`: il solo `utci_grid`, che prende e restituisce array numpy. Il
 polinomio, la pressione di vapore saturo e `utci_single` restano.
@@ -135,7 +135,7 @@ riconciliabile un aggiornamento.
 [come_si_rifa]
 comandi = """
 git clone https://github.com/UMEP-dev/solweig /tmp/solweig
-cd /tmp/solweig && git checkout <commit>
+git -C /tmp/solweig checkout <commit>
 python3 vendor/solweig/estrai.py /tmp/solweig
 """
 nota = """
@@ -147,6 +147,48 @@ orfano e cancella in silenzio l'elemento successivo.
 """
 
 [verificato_al_momento_della_presa]
+a_quale_presa = """
+Questa tabella è nata sul commit 02246ab71a3a8b127d740dde9640449ee9d558ff,
+preso il 2026-09-01. Il 2026-11-10 il pin è passato a c31c575, che è
+v0.1.0b98, e da allora le sue voci non valgono tutte allo stesso titolo.
+
+Fra i due commit, nei tre file presi, cambia una sola istruzione di
+`skyview.rs`, più il commento che la spiega: senza strato di chioma
+`veg_blocks_bldg_sh_matrix` non è più la copia di `bldg_sh_matrix`, è tutta a
+1. `shadowing.rs` e `utci.rs` escono dall'estrazione identici.
+
+Di c31c575: `righe`, che `estrai.py` ristampa a ogni estrazione.
+
+Riprovato su c31c575 a ogni `cargo test -p ombra`: che la copia compili e si usi
+da un crate esterno, `utci`, `geometria`, e di `sky_view_factor` il dominio
+piano e la chioma a corona. Che non restino righe di `pyo3` o di `numpy` lo
+controlla `estrai.py`, che altrimenti si ferma.
+
+Rimisurato su c31c575, fuori dai test:
+
+- Il ramo che la correzione tocca. Senza strato di chioma, su tre domini — piano
+  21x21, torre 21x21, quattordici blocchi su un terreno inclinato 50x50 — i
+  quindici campi `svf*` che il nucleo restituisce sono identici bit per bit a
+  quelli di 02246ab. Cambia soltanto `veg_blocks_bldg_sh_matrix`, che OMBRA oggi
+  non legge. Il giorno che la leggerà, la misura va rifatta su ciò che ne
+  dipende.
+- I cinque valori medi di `sky_view_factor` sul caso di riferimento, riportati
+  più sotto: gli stessi, alla quarta cifra decimale. Sulla correzione dicono
+  poco, perché le quattro Corse hanno tutte uno strato di chioma e in quel ramo
+  non si esegue nessuna istruzione cambiata.
+
+Non rimisurato, vale per costruzione: il 15 per cento del blocco 5x5, che ha una
+chioma e passa quindi per istruzioni identiche. Nessun test fissa quel numero:
+quello che c'è chiede soltanto che superi il 5 per cento.
+
+Di 02246ab, non rimisurato: i millisecondi di `tempo` e di
+`tempo_sky_view_factor`. La macchina su cui furono presi non è registrata, e non
+lo è nemmeno quella di oggi: conta solo il confronto fra i due commit sulla
+stessa macchina. Il 2026-11-10, in release, le quattro Corse del caso di
+riferimento completo hanno impiegato circa 0,2 s in tutto, su c31c575 come su
+02246ab. La conclusione di `tempo_sky_view_factor`, che la cache non serve
+ancora, regge.
+"""
 compila = """
 Con ndarray 0.16.1 e rayon, zero righe che nominano Python. Rayon si dichiara
 perche' `utci.rs` lo importa in cima al file e l'import resta anche quando
@@ -165,7 +207,7 @@ Una chiamata su 50x50 con una torre al centro, in release: 47 ms a freddo, poi
 44, 45 e 11 ms. Il cancello dei 60 secondi chiede quattro Corse da 48 ore, e
 questo numero dice che il collo di bottiglia non sarà qui.
 """
-righe = "shadowing.rs 974 -> 683, utci.rs 366 -> 297, skyview.rs 1103 -> 870"
+righe = "shadowing.rs 974 -> 683, utci.rs 366 -> 297, skyview.rs 1104 -> 871"
 utci = """
 Nell'ambiente di riferimento di UTCI — aria ferma a 0,5 m/s, temperatura media
 radiante uguale a quella dell'aria, pressione di vapore al riferimento — il
@@ -207,7 +249,7 @@ piu' basso, e una cache per geometria risparmierebbe 0,19 s su 60. Non si
 costruisce finche' un dominio piu' grande non la chiede.
 """
 geometria = """
-Torre di 10 m al centro di un dominio piano 21x21 a passo 1 m, sole a sud a 45
+Torre di 10 m al centro di un dominio piano 25x25 a passo 1 m, sole a sud a 45
 gradi: l'ombra cade a nord, il lato a sud e il lato a ovest restano al sole. E
 un dominio piano con sole a 60 gradi è illuminato ovunque. La convenzione
 dell'azimut coincide quindi con la nostra — gradi da nord in senso orario, riga

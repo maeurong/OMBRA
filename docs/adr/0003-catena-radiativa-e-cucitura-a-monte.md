@@ -158,5 +158,12 @@ sky view factor non ne sono toccati, e OMBRA oggi legge solo quelli. Il Modello
 di cielo anisotropo le matrici le userà: il pin deve essere almeno a 0.1.0b97
 prima di allora.
 
+**Spostato lo stesso giorno**, a 0.1.0b98
+(`c31c5758236078b6b5f7bc9a931e2fce264bfc88`). Senza strato di chioma i campi di
+sky view factor che il nucleo restituisce sono identici bit per bit a quelli del
+pin precedente, e cambia solo la matrice che la correzione nomina. Cosa è stato
+rimisurato e cosa no sta in `vendor/solweig/PROVENIENZA.toml`, alla voce
+`a_quale_presa`.
+
 L'implementazione di riferimento che il pacchetto segue è ora
 [UMEP-dev/umep-solweig](https://github.com/UMEP-dev/umep-solweig).
