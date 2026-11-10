@@ -17,6 +17,7 @@
 //! cannot be summed, averaged or plotted as if it had been measured.
 
 use crate::dominio::Data;
+use std::collections::HashMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -29,8 +30,11 @@ pub struct ValoriOrari {
     pub mese: u32,
     pub giorno: u32,
     /// The EPW hour, 1 to 24. Record `h` is the average over the hour that ends
-    /// at `h`, so it covers local standard time from `h - 1` to `h`. Which
-    /// instant inside that hour the sun is computed at is not decided here.
+    /// at `h`, so it covers local standard time from `h - 1` to `h`. The Corsa
+    /// computes the sun of that hour at its centre, `h - 0:30`: the decision is
+    /// ticket #35 of `maeurong/OMBRA`. The reader below refuses a file whose
+    /// minute field is not 0 or 60, or that carries two records for one hour:
+    /// in a file that is not hourly that centre would mean nothing.
     pub ora: u32,
     /// Dry bulb air temperature, degrees Celsius.
     pub temperatura_c: Option<f64>,
@@ -60,6 +64,11 @@ pub struct Epw {
     /// never shifts its hours for daylight saving.
     pub fuso_ore: f64,
     pub quota_m: f64,
+    /// The values the minute field takes across the records, each once, in
+    /// ascending order: `[0]`, `[60]` or both. The hour comes from the hour
+    /// field in both cases, so this moves nothing. It is kept for the
+    /// Giornale, which reports what the file said.
+    pub minuti: Vec<u32>,
     ore: Vec<ValoriOrari>,
 }
 
@@ -89,6 +98,23 @@ pub enum MeteoError {
     },
     SenzaOre {
         percorso: PathBuf,
+    },
+    /// A record whose minute field is anything but 0 or 60, a number or not: a
+    /// sub-hourly file, or one that samples instants. OMBRA reads hourly means.
+    MinutoNonOrario {
+        percorso: PathBuf,
+        riga: usize,
+        testo: String,
+    },
+    /// A second record for a year, month, day and hour the file already
+    /// carries at line `prima`.
+    OraRipetuta {
+        percorso: PathBuf,
+        riga: usize,
+        prima: usize,
+        mese: u32,
+        giorno: u32,
+        ora: u32,
     },
     /// A Periodo whose first date the file has no record for. An EPW carries no
     /// 29 February, so a Periodo starting there ends up here.
@@ -141,11 +167,57 @@ impl fmt::Display for MeteoError {
                  8760 ore e non ha il 29 febbraio",
                 percorso.display()
             ),
+            Self::MinutoNonOrario {
+                percorso,
+                riga,
+                testo,
+            } => write!(
+                f,
+                "{}, riga {riga}: il campo minuto è «{testo}», e un file orario porta 0 o \
+                 60. OMBRA legge solo file orari: serve un EPW con una riga di dati per \
+                 ora",
+                percorso.display()
+            ),
+            Self::OraRipetuta {
+                percorso,
+                riga,
+                prima,
+                mese,
+                giorno,
+                ora,
+            } => write!(
+                f,
+                "{}, riga {riga}: due righe di dati per il {giorno}/{mese}, ora {ora}: \
+                 la prima è alla riga {prima}. Un file orario ne porta una per ora: se è \
+                 un doppione va tolto, se il file è sub-orario serve la sua versione \
+                 oraria",
+                percorso.display()
+            ),
         }
     }
 }
 
 impl std::error::Error for MeteoError {}
+
+impl MeteoError {
+    /// Whether the file was read and found not to be hourly, as opposed to not
+    /// read at all. The Corsa treats the two differently: without a file it
+    /// still runs, on a time zone it guesses and declares, while a file that is
+    /// not hourly would pair every Ora with the wrong record once a Corsa reads
+    /// them.
+    pub fn non_orario(&self) -> bool {
+        // No wildcard arm: a new variant has to say which of the two it is.
+        match self {
+            Self::MinutoNonOrario { .. } | Self::OraRipetuta { .. } => true,
+            Self::NonLeggibile { .. }
+            | Self::SenzaLuogo { .. }
+            | Self::NonNumerico { .. }
+            | Self::RigaCorta { .. }
+            | Self::SenzaOre { .. }
+            | Self::GiornoAssente { .. } => false,
+        }
+    }
+}
 
 /// The eight header lines of an EPW, of which OMBRA reads only the first.
 const RIGHE_DI_INTESTAZIONE: usize = 8;
@@ -177,6 +249,19 @@ fn numero(
             campo,
             testo: testo.trim().to_owned(),
         })
+}
+
+/// A field as an error message quotes it: without control characters, and cut
+/// short. The message goes to a terminal and into every Giornale of the
+/// Progetto, and the field comes from a file somebody else may have written.
+fn citato(testo: &str) -> String {
+    const CARATTERI: usize = 32;
+    let mut caratteri = testo.trim().chars().filter(|c| !c.is_control());
+    let mut citato: String = caratteri.by_ref().take(CARATTERI).collect();
+    if caratteri.next().is_some() {
+        citato.push('…');
+    }
+    citato
 }
 
 /// A value, unless the file says it is the sentinel that means "not measured".
@@ -215,6 +300,12 @@ impl Epw {
         let quota_m = numero(luogo[9], percorso, 1, "la quota della stazione")?;
 
         let mut ore = Vec::new();
+        let mut minuti = Vec::new();
+        // The line each hour was first seen at. The year is in the key as the
+        // file writes it, so a file of several years still has one record per
+        // hour, and so does a typical year stitched from months of different
+        // years.
+        let mut viste: HashMap<(&str, u32, u32, u32), usize> = HashMap::new();
         for (indice, riga) in testo.lines().enumerate().skip(RIGHE_DI_INTESTAZIONE) {
             let riga = riga.trim();
             if riga.is_empty() {
@@ -232,10 +323,45 @@ impl Epw {
             let leggi = |colonna: usize, campo: &'static str| {
                 numero(campi[colonna - 1], percorso, numero_di_riga, campo)
             };
+            let (mese, giorno, ora) = (
+                leggi(2, "il mese")? as u32,
+                leggi(3, "il giorno")? as u32,
+                leggi(4, "l'ora")? as u32,
+            );
+            // The minute is compared as read, not truncated: 0.5 is not 0. A field
+            // that is not a number is not 0 or 60 either, and ends up here
+            // rather than in `NonNumerico`, which the Corsa survives.
+            let minuto = match campi[4].trim().parse::<f64>() {
+                Ok(minuto) if minuto == 0.0 || minuto == 60.0 => minuto as u32,
+                _ => {
+                    return Err(MeteoError::MinutoNonOrario {
+                        percorso: percorso.to_path_buf(),
+                        riga: numero_di_riga,
+                        testo: citato(campi[4]),
+                    })
+                }
+            };
+            // Against the whole file and not only the record before: a block
+            // pasted twice repeats nothing next to itself, and `ore_dal` counts
+            // records in the order they come.
+            if let Some(prima) = viste.insert((campi[0].trim(), mese, giorno, ora), numero_di_riga)
+            {
+                return Err(MeteoError::OraRipetuta {
+                    percorso: percorso.to_path_buf(),
+                    riga: numero_di_riga,
+                    prima,
+                    mese,
+                    giorno,
+                    ora,
+                });
+            }
+            if let Err(posto) = minuti.binary_search(&minuto) {
+                minuti.insert(posto, minuto);
+            }
             ore.push(ValoriOrari {
-                mese: leggi(2, "il mese")? as u32,
-                giorno: leggi(3, "il giorno")? as u32,
-                ora: leggi(4, "l'ora")? as u32,
+                mese,
+                giorno,
+                ora,
                 temperatura_c: misurato(leggi(7, "la temperatura dell'aria")?, ASSENTE_TEMPERATURA),
                 umidita_relativa: misurato(leggi(9, "l'umidità relativa")?, ASSENTE_PERCENTO),
                 globale_orizzontale_wm2: misurato(
@@ -270,6 +396,7 @@ impl Epw {
             longitudine_gradi,
             fuso_ore,
             quota_m,
+            minuti,
             ore,
         })
     }

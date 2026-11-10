@@ -673,7 +673,10 @@ fn il_giornale_registra_ingressi_versioni_scelte_e_inviluppi() {
         tabella["motore"]["commit"].as_str(),
         Some(motore::versione().commit.as_str())
     );
-    assert_eq!(tabella["binario"]["versione"].as_str(), Some("0.1.0"));
+    // Written out and not read from the build: the Impronta takes the version
+    // and not the convention of the sun, so the version that moved the sun to
+    // the centre of the Ora is a number this test has to name.
+    assert_eq!(tabella["binario"]["versione"].as_str(), Some("0.2.0"));
     assert_eq!(tabella["griglia"]["nx"].as_integer(), Some(6));
     assert_eq!(
         tabella["derivazione"]["celle_costruite"].as_integer(),
@@ -743,27 +746,304 @@ fn il_giornale_dichiara_ogni_strato_di_chioma_con_la_sua_trasmissivita() {
     }
 }
 
-/// A weather file with `fuso` as its time zone and one record per hour of two
-/// days, written into the Progetto so the test does not depend on a file that
-/// is not in the repository.
-fn scrivi_epw(dir: &std::path::Path, fuso: f64) -> PathBuf {
+/// A weather file with `fuso` as its time zone and one record of July per
+/// `(giorno, ora, minuto)`, written into the Progetto so the test does not
+/// depend on a file that is not in the repository.
+fn scrivi_epw_di(dir: &std::path::Path, fuso: f64, record: &[(u32, u32, &str)]) -> PathBuf {
     let mut testo = format!("LOCATION,Prova,-,ITA,X,000000,43.07,12.56,{fuso},213.0");
     for _ in 0..7 {
         testo.push_str("\nRIGA DI INTESTAZIONE,ignorata");
     }
-    for giorno in [15, 16] {
-        for ora in 1..=24 {
-            testo.push_str(&format!(
-                "\n2005,7,{giorno},{ora},0,?9?9,24.0,7.2,55,98792,9999,9999,290,120,300,80,\
-                 999900,999900,999900,99990,45,4.0,1,1,999.0,999,9,999999999,0,0.0000,0,88,\
-                 999.000,999.0,99.0"
-            ));
-        }
+    for (giorno, ora, minuto) in record {
+        testo.push_str(&format!(
+            "\n2005,7,{giorno},{ora},{minuto},?9?9,24.0,7.2,55,98792,9999,9999,290,120,300,80,\
+             999900,999900,999900,99990,45,4.0,1,1,999.0,999,9,999999999,0,0.0000,0,88,\
+             999.000,999.0,99.0"
+        ));
     }
     testo.push('\n');
     let percorso = dir.join("prova.epw");
     fs::write(&percorso, testo).unwrap();
     percorso
+}
+
+/// 15 and 16 July, one record per hour, every minute field as given.
+fn due_giorni(minuto: &'static str) -> Vec<(u32, u32, &'static str)> {
+    [15, 16]
+        .into_iter()
+        .flat_map(|giorno| (1..=24).map(move |ora| (giorno, ora, minuto)))
+        .collect()
+}
+
+fn scrivi_epw(dir: &std::path::Path, fuso: f64) -> PathBuf {
+    scrivi_epw_di(dir, fuso, &due_giorni("0"))
+}
+
+/// Runs a Corsa of forty-eight Ore at `latitudine` and checks it against the
+/// sun of `k + 0:30`, Ora by Ora: the series of a Punto, and the map of the
+/// hours in the sun. Returns the series and the elevation of the sun at 23:30
+/// of the first day, which is the sun of Ora 23.
+fn cammina_col_sole_al_centro(nome: &str, latitudine: f64) -> (Vec<f64>, f64) {
+    const ORE: u32 = 48;
+    let dir = tempdir_di_prova(nome);
+    let epw = scrivi_epw(&dir, 1.0);
+    let mut progetto = progetto_di_prova(21, vec![periodo("estate", 7, 15, ORE)]);
+    progetto.griglia.origine.1 = latitudine;
+    progetto.periodi[0].meteo = epw;
+    // West of the tower and a little north: in its shadow for part of the
+    // morning, so the series has something to get wrong.
+    progetto.punti = vec![punto(1, (6.5, 11.5))];
+    ombra::progetto::scrivi(&dir, &progetto).unwrap();
+    let rapporto = corsa::esegui_progetto(&dir).unwrap();
+    assert_eq!(rapporto.corse[0].errore, None);
+    let campi = rapporto.corse[0].campi.as_ref().unwrap();
+    let serie = &campi.serie[0];
+
+    // The same sun and the same Motore, asked here hour by hour.
+    let raster = ombra::derivazione::deriva(
+        &progetto.griglia,
+        &progetto.scenari[0],
+        &progetto.periodi[0],
+    )
+    .unwrap();
+    let sole = |ora_locale_h: f64| {
+        ombra::sole::posizione(
+            progetto.periodi[0].inizio,
+            ora_locale_h,
+            1.0,
+            latitudine,
+            12.56,
+        )
+        .unwrap()
+    };
+    let illuminata = |ora_locale_h: f64| {
+        motore::ombre(
+            &raster.modello_di_superficie,
+            progetto.griglia.passo_m,
+            sole(ora_locale_h),
+            &raster.strati_di_chioma,
+        )
+    };
+
+    let mut al_centro = ombra::derivazione::Raster::zeros(campi.ore_di_sole.dim());
+    let mut all_inizio = al_centro.clone();
+    for ora in 0..ORE {
+        let centro = f64::from(ora) + 0.5;
+        let attesa = illuminata(centro);
+        let del_punto = f64::from(attesa[[serie.riga, serie.colonna]]);
+        assert!(
+            (serie.frazione_illuminata[ora as usize] - del_punto).abs() < 1e-4,
+            "{nome}, Ora {ora}: la serie dice {} e il sole di {centro} dice {del_punto}",
+            serie.frazione_illuminata[ora as usize]
+        );
+        al_centro += &attesa;
+        all_inizio += &illuminata(f64::from(ora));
+    }
+
+    let scarto_massimo = |altra: &ombra::derivazione::Raster| {
+        campi
+            .ore_di_sole
+            .iter()
+            .zip(altra)
+            .map(|(a, b)| (a - b).abs())
+            .fold(0.0f32, f32::max)
+    };
+    assert!(
+        scarto_massimo(&al_centro) < 1e-4,
+        "{nome}: le ore di sole non sono la somma delle ombre al centro di ogni \
+         Ora, scarto massimo {} h",
+        scarto_massimo(&al_centro)
+    );
+    // What makes the assertion above a test of the convention: on this Scenario
+    // the two conventions do not give the same map.
+    assert!(
+        scarto_massimo(&all_inizio) >= 1.0,
+        "{nome}: il sole all'inizio dell'Ora darebbe la stessa mappa, questo \
+         Scenario non distingue le due convenzioni"
+    );
+    (serie.frazione_illuminata.clone(), sole(23.5).altezza_gradi)
+}
+
+/// The sun of Ora `k` is the sun of `k + 0:30`, for everything a Corsa computes
+/// in that Ora. Forty-eight Ore, so the walk goes past the twenty-fourth.
+#[test]
+fn il_sole_di_un_ora_e_quello_del_suo_centro() {
+    let (serie, altezza_alle_23_30) = cammina_col_sole_al_centro("sole-al-centro", 43.07);
+    // At Bastia Ora 23 is night under any convention: the walk says nothing
+    // about it here beyond the zero.
+    assert!(altezza_alle_23_30 < 0.0);
+    assert_eq!(serie[23], 0.0);
+}
+
+/// Ora 23 has its sun at 23:30 of the same day. Where that is night, 23:00,
+/// 23:30 and midnight all leave the domain dark and no test can tell them
+/// apart, so the same walk is taken where the sun does not set in July.
+#[test]
+fn l_ora_23_ha_il_sole_delle_23_e_30_anche_dove_a_quell_ora_e_giorno() {
+    let (serie, altezza_alle_23_30) = cammina_col_sole_al_centro("sole-di-mezzanotte", 75.0);
+    assert!(
+        altezza_alle_23_30 > 0.0,
+        "a 75 gradi nord il sole delle 23:30 di luglio è sopra l'orizzonte"
+    );
+    assert!(serie[23] > 0.0, "e il Punto, all'Ora 23, lo vede");
+}
+
+/// The nights the shadow check counts are counted with the sun of the centre.
+/// Six Ore around dawn, where one Ora changes side with the convention: with
+/// the clock half an hour ahead the start of the Ora counts one night more,
+/// with the clock on the hour the end of the Ora counts one fewer.
+#[test]
+fn la_verifica_dell_ombra_conta_le_notti_col_sole_del_centro() {
+    for (fuso, altra_convenzione_h) in [(1.5, 0.0), (1.0, 1.0)] {
+        let dir = tempdir_di_prova(&format!("notti-all-alba-{fuso}"));
+        let epw = scrivi_epw(&dir, fuso);
+        let mut progetto = progetto_di_prova(6, vec![periodo("alba", 7, 15, 6)]);
+        progetto.periodi[0].meteo = epw;
+        ombra::progetto::scrivi(&dir, &progetto).unwrap();
+        let rapporto = corsa::esegui_progetto(&dir).unwrap();
+        let tabella = rileggi(&rapporto.corse[0].giornale);
+
+        let notti = |dentro_l_ora_h: f64| {
+            (0..6)
+                .filter(|&ora| {
+                    ombra::sole::posizione(
+                        progetto.periodi[0].inizio,
+                        f64::from(ora) + dentro_l_ora_h,
+                        fuso,
+                        43.07,
+                        12.56,
+                    )
+                    .unwrap()
+                    .altezza_gradi
+                        <= 0.0
+                })
+                .count() as i64
+        };
+        assert_ne!(
+            notti(0.5),
+            notti(altra_convenzione_h),
+            "fuso {fuso}: questo Periodo non distingue le due convenzioni"
+        );
+        assert_eq!(
+            tabella["verifica_ombra"]["ore_notturne"].as_integer(),
+            Some(notti(0.5)),
+            "fuso {fuso}"
+        );
+    }
+}
+
+#[test]
+fn il_giornale_dichiara_l_istante_del_sole_e_il_minuto_del_file_meteo() {
+    // Both spellings of an hourly file: the minute does not move the sun, and
+    // the Giornale reports which one the file used.
+    for (minuto, atteso) in [("0", 0), ("60", 60)] {
+        let dir = tempdir_di_prova(&format!("istante-minuto-{minuto}"));
+        let epw = scrivi_epw_di(&dir, 1.0, &due_giorni(minuto));
+        let mut progetto = progetto_di_prova(6, vec![periodo("estate", 7, 15, 2)]);
+        progetto.periodi[0].meteo = epw;
+        ombra::progetto::scrivi(&dir, &progetto).unwrap();
+        let rapporto = corsa::esegui_progetto(&dir).unwrap();
+        assert_eq!(rapporto.corse[0].errore, None, "minuto {minuto}");
+        let tabella = rileggi(&rapporto.corse[0].giornale);
+
+        assert_eq!(tabella["sole"]["istante"].as_str(), Some("centro dell'Ora"));
+        let minuti: Vec<i64> = tabella["sole"]["minuti_del_file_meteo"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| m.as_integer().unwrap())
+            .collect();
+        assert_eq!(minuti, vec![atteso]);
+        // The note explains the key it sits next to, and only when there is a
+        // file to explain.
+        let nota = tabella["sole"]["nota"].as_str().unwrap();
+        assert!(nota.contains("minuti_del_file_meteo"), "{nota}");
+        assert!(nota.contains("k + 0:30"), "{nota}");
+    }
+}
+
+#[test]
+fn un_file_meteo_non_orario_ferma_la_corsa_prima_del_calcolo() {
+    // A file that will not read leaves the Corsa without a time zone and it
+    // runs on a guess it declares. A file that reads and is not hourly is
+    // another matter: the Corsa would be computed on hours that are not hours.
+    let mut mezz_ora = due_giorni("0");
+    mezz_ora[30].2 = "30";
+    let mut ripetuta = due_giorni("60");
+    ripetuta.insert(30, ripetuta[30]);
+
+    for (nome, record, atteso) in [
+        ("meteo-a-mezz-ora", mezz_ora, "«30»"),
+        ("meteo-ora-ripetuta", ripetuta, "due righe di dati"),
+    ] {
+        let dir = tempdir_di_prova(nome);
+        let epw = scrivi_epw_di(&dir, 1.0, &record);
+        let mut progetto = progetto_di_prova(6, vec![periodo("estate", 7, 15, 2)]);
+        progetto.periodi[0].meteo = epw;
+        ombra::progetto::scrivi(&dir, &progetto).unwrap();
+        let rapporto = corsa::esegui_progetto(&dir).unwrap();
+
+        let esito = &rapporto.corse[0];
+        let errore = esito
+            .errore
+            .as_deref()
+            .unwrap_or_else(|| panic!("{nome}: la Corsa deve fallire"));
+        assert!(errore.contains(atteso), "{nome}: {errore}");
+        assert!(errore.contains("prova.epw"), "{nome}: {errore}");
+        assert!(esito.campi.is_none(), "{nome}: niente è stato calcolato");
+
+        let tabella = rileggi(&esito.giornale);
+        assert_eq!(tabella["conclusione"]["esito"].as_str(), Some("fallita"));
+        assert!(!tabella.contains_key("campo"), "{nome}");
+        assert!(!tabella.contains_key("verifica_ombra"), "{nome}");
+    }
+}
+
+#[test]
+fn ogni_periodo_risponde_del_suo_file_meteo_e_non_di_quello_di_un_altro() {
+    // Two Periodi on an hourly file and one on a file that is not. The one
+    // that is not sorts first by name, so a Corsa handed "the first file"
+    // instead of its own would fail twice where it has to succeed.
+    let dir = tempdir_di_prova("due-file-meteo");
+    let mut mezz_ora = due_giorni("0");
+    mezz_ora[30].2 = "30";
+    let guasto = dir.join("guasto.epw");
+    fs::rename(scrivi_epw_di(&dir, 1.0, &mezz_ora), &guasto).unwrap();
+    let orario = scrivi_epw(&dir, 1.0);
+
+    let mut progetto = progetto_di_prova(
+        6,
+        vec![
+            periodo("primo", 7, 15, 2),
+            periodo("secondo", 7, 16, 2),
+            periodo("terzo", 7, 15, 2),
+        ],
+    );
+    progetto.periodi[0].meteo = orario.clone();
+    progetto.periodi[1].meteo = orario;
+    progetto.periodi[2].meteo = guasto;
+    ombra::progetto::scrivi(&dir, &progetto).unwrap();
+    let rapporto = corsa::esegui_progetto(&dir).unwrap();
+
+    assert_eq!(rapporto.corse.len(), 3);
+    assert_eq!(rapporto.corse[0].errore, None);
+    assert_eq!(rapporto.corse[1].errore, None);
+    let errore = rapporto.corse[2]
+        .errore
+        .as_deref()
+        .expect("il terzo Periodo ha un file che non è orario");
+    assert!(errore.contains("guasto.epw"), "{errore}");
+    assert!(errore.contains("«30»"), "{errore}");
+
+    // Each file is an Ingresso once, however many Periodi name it.
+    let tabella = rileggi(&rapporto.corse[0].giornale);
+    let meteo = tabella["ingresso"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|i| i["ruolo"].as_str() == Some("meteo"))
+        .count();
+    assert_eq!(meteo, 2);
 }
 
 #[test]
@@ -817,6 +1097,14 @@ fn senza_file_meteo_il_fuso_torna_alla_longitudine_e_il_giornale_lo_dice() {
     let fonte = tabella["sole"]["fuso_da"].as_str().unwrap();
     assert!(fonte.contains("longitudine"), "{fonte}");
     assert!(fonte.contains("non si è potuto leggere"), "{fonte}");
+    // No file, no minute to report, and a note that does not go on about what
+    // the file declares. The instant of the sun is OMBRA's own and is declared
+    // all the same.
+    assert!(tabella["sole"].get("minuti_del_file_meteo").is_none());
+    let nota = tabella["sole"]["nota"].as_str().unwrap();
+    assert!(!nota.contains("file"), "{nota}");
+    assert!(nota.contains("k + 0:30"), "{nota}");
+    assert_eq!(tabella["sole"]["istante"].as_str(), Some("centro dell'Ora"));
 }
 
 fn punto(id: u32, posizione_m: (f64, f64)) -> PuntoDiOsservazione {

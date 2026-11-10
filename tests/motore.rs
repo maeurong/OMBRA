@@ -155,6 +155,23 @@ fn il_sole_gira_da_est_a_ovest_passando_per_il_sud() {
 }
 
 #[test]
+fn un_ora_oltre_la_ventiquattresima_e_la_stessa_ora_del_giorno_dopo() {
+    // A Corsa of forty-eight Ore asks for the sun of 30:30 and never rewrites
+    // the date: the argument has to carry the day forward by itself.
+    let domani = Data {
+        giorno: 16,
+        ..luglio()
+    };
+    let oltre = posizione(luglio(), 30.5, FUSO, LATITUDINE, LONGITUDINE).unwrap();
+    let dopo = posizione(domani, 6.5, FUSO, LATITUDINE, LONGITUDINE).unwrap();
+    assert!(
+        (oltre.altezza_gradi - dopo.altezza_gradi).abs() < 1e-9
+            && (oltre.azimut_gradi - dopo.azimut_gradi).abs() < 1e-9,
+        "30:30 del 15 dà {oltre:?}, 06:30 del 16 dà {dopo:?}"
+    );
+}
+
+#[test]
 fn una_data_che_non_e_una_data_non_ha_posizione_solare() {
     let inesistente = Data {
         anno: 2026,

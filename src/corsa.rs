@@ -15,12 +15,12 @@ use crate::dominio::{FonteAltezza, Griglia, Periodo, Progetto, PuntoDiOsservazio
 use crate::giornale::{
     arrotonda, conta_provenienza, inviluppo, Giornale, GiornaleError, Impronta, Ingresso, Inviluppo,
 };
-use crate::meteo::Epw;
+use crate::meteo::{Epw, MeteoError};
 use crate::motore::{self, SkyViewFactor};
 use crate::progetto::{self, ProgettoError};
 use crate::sole::{self, PosizioneSolare};
 use serde::Serialize;
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -61,6 +61,10 @@ pub enum CorsaError {
         crs: String,
         origine: (f64, f64),
     },
+    /// A weather file that was read and is not hourly: a minute field that is
+    /// neither 0 nor 60, or two records for one hour. The Corsa stops before
+    /// the Motore is called.
+    MeteoNonOrario(String),
     Derivazione(DerivazioneError),
     Progetto(ProgettoError),
     Giornale(GiornaleError),
@@ -85,6 +89,7 @@ impl fmt::Display for CorsaError {
                  posizione solare, e questo programma non riproietta",
                 origine.0, origine.1
             ),
+            Self::MeteoNonOrario(e) => write!(f, "file meteo: {e}"),
             Self::Derivazione(e) => write!(f, "derivazione: {e}"),
             Self::Progetto(e) => write!(f, "progetto: {e}"),
             Self::Giornale(e) => write!(f, "giornale: {e}"),
@@ -227,7 +232,7 @@ struct PeriodoCitato<'a> {
 }
 
 #[derive(Serialize)]
-struct SoleCitato {
+struct SoleCitato<'a> {
     latitudine_gradi: f64,
     longitudine_gradi: f64,
     fuso_ore: f64,
@@ -235,7 +240,16 @@ struct SoleCitato {
     /// zone derived from the longitude are not the same claim, and a Giornale
     /// that showed only the number would not let anyone tell them apart.
     fuso_da: &'static str,
-    nota: &'static str,
+    /// Which instant of an Ora the sun is computed at. One value today, and
+    /// written all the same: a Giornale of version 0.1.0 has the sun half an
+    /// hour earlier, and nothing else in the file would tell a reader why two
+    /// Corse of the same Progetto disagree.
+    istante: &'static str,
+    /// The values the minute field takes in the weather file, each once.
+    /// Absent when the file could not be read, which `fuso_da` already says.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    minuti_del_file_meteo: Option<&'a [u32]>,
+    nota: String,
 }
 
 /// `ScelteDiDerivazione` written out. A modelling choice the program makes on
@@ -284,10 +298,10 @@ struct Parametri<'a> {
 
 /// Latitude, longitude and clock offset of a Griglia.
 ///
-/// The offset is the nearest whole hour of longitude, and the Giornale writes
-/// it down: no field of the domain carries the offset of the weather file, and
-/// a stand-in a reader can see is better than one they cannot.
-fn coordinate(griglia: &Griglia, meteo: Option<&Epw>) -> Result<Luogo, CorsaError> {
+/// The offset comes from the weather file. Without a file that reads it falls
+/// back to the nearest whole hour of longitude, and the Giornale says which of
+/// the two it was; a file that reads and is not hourly is an error.
+fn coordinate(griglia: &Griglia, meteo: Result<&Epw, &MeteoError>) -> Result<Luogo, CorsaError> {
     let (longitudine, latitudine) = griglia.origine;
     if !griglia.crs.eq_ignore_ascii_case("EPSG:4326")
         || !(-90.0..=90.0).contains(&latitudine)
@@ -303,15 +317,19 @@ fn coordinate(griglia: &Griglia, meteo: Option<&Epw>) -> Result<Luogo, CorsaErro
     // guess with a whole hour of granularity — fifteen degrees of hour angle,
     // enough to move every shadow — and it cannot represent the half-hour and
     // quarter-hour zones at all.
-    let (fuso_ore, fonte_del_fuso) = match meteo {
-        Some(epw) => (epw.fuso_ore, FONTE_FILE_METEO),
-        None => ((longitudine / 15.0).round(), FONTE_LONGITUDINE),
+    let (fuso_ore, fonte_del_fuso, minuti_del_file_meteo) = match meteo {
+        Ok(epw) => (epw.fuso_ore, FONTE_FILE_METEO, Some(epw.minuti.clone())),
+        // Read, and not hourly: no fallback. The longitude can stand in for a
+        // time zone, nothing can stand in for the hours.
+        Err(e) if e.non_orario() => return Err(CorsaError::MeteoNonOrario(e.to_string())),
+        Err(_) => ((longitudine / 15.0).round(), FONTE_LONGITUDINE, None),
     };
     Ok(Luogo {
         latitudine,
         longitudine,
         fuso_ore,
         fonte_del_fuso,
+        minuti_del_file_meteo,
     })
 }
 
@@ -321,7 +339,32 @@ struct Luogo {
     longitudine: f64,
     fuso_ore: f64,
     fonte_del_fuso: &'static str,
+    minuti_del_file_meteo: Option<Vec<u32>>,
 }
+
+/// The sun of an Ora is computed at its centre: Ora `k` of a Periodo, counted
+/// from zero, runs from `k` to `k + 1` hours after midnight of the first day,
+/// on the clock of the time zone, and has its sun at `k + 0:30`. An EPW record
+/// integrates its radiations over the hour that ends at its label, so the
+/// centre is the instant that stands for them. Decided in ticket #35 of
+/// `maeurong/OMBRA`.
+///
+/// One sun per Ora: everything `marcia` computes in an Ora comes from it.
+const CENTRO_DELL_ORA_H: f64 = 0.5;
+
+/// What `[sole]` says in every Giornale, and what it adds when the weather
+/// file was read. Two texts and not one: a Giornale whose time zone was
+/// guessed from the longitude must not go on about what the file declares.
+const NOTA_DEL_SOLE: &str = "posizione solare calcolata da OMBRA e non chiesta al Motore. \
+    L'Ora k di un Periodo, contata da zero, va da k a k + 1 ore dopo la mezzanotte del primo \
+    giorno, nell'ora del fuso scritto in fuso_ore, e ha il sole al suo centro, a k + 0:30: \
+    un solo sole per le ombre, le ore di sole, \
+    le serie dei Punti di osservazione e la verifica dell'ombra";
+const NOTA_DEL_FILE_METEO: &str = ". Le ore di un file EPW sono in ora solare tutto l'anno, \
+    senza spostamento estivo, e il fuso che le colloca nel giorno è quello dichiarato dal \
+    file. minuti_del_file_meteo elenca i valori che il campo minuto assume nel file: 0 e 60 \
+    sono le due scritture di un file orario, l'ora la dà il campo ora e il minuto non sposta \
+    il sole";
 
 const FONTE_FILE_METEO: &str = "file meteo";
 const FONTE_LONGITUDINE: &str = "longitudine, perché il file meteo non si è potuto leggere";
@@ -371,11 +414,12 @@ struct Marcia {
     tempo_motore: Duration,
 }
 
-/// The hours of the Periodo, one call to the Motore each.
+/// The hours of the Periodo, one call to the Motore each, with the sun at the
+/// centre of each: `ora + CENTRO_DELL_ORA_H`.
 ///
 /// `ora_locale_h` runs past 24 on purpose: `sole::posizione` advances the day
 /// through the same argument, and twenty-four hours are three hundred and sixty
-/// degrees of hour angle, so hour 30 of the first day *is* hour 6 of the second.
+/// degrees of hour angle, so 30:30 of the first day *is* 06:30 of the second.
 fn marcia(
     modello_di_superficie: &Raster,
     costruite: &Raster,
@@ -424,7 +468,7 @@ fn marcia(
     for ora in 0..periodo.ore {
         let sole = sole::posizione(
             periodo.inizio,
-            f64::from(ora),
+            f64::from(ora) + CENTRO_DELL_ORA_H,
             luogo.fuso_ore,
             luogo.latitudine,
             luogo.longitudine,
@@ -584,7 +628,7 @@ pub fn esegui(
     scenario: &Scenario,
     periodo: &Periodo,
     raster: &RasterDiScenario,
-    meteo: Option<&Epw>,
+    meteo: Result<&Epw, &MeteoError>,
     ingressi: &[Ingresso],
     etichetta: &str,
 ) -> Result<Esito, CorsaError> {
@@ -723,10 +767,12 @@ pub fn esegui(
                     longitudine_gradi: luogo.longitudine,
                     fuso_ore: luogo.fuso_ore,
                     fuso_da: luogo.fonte_del_fuso,
-                    nota: "posizione solare calcolata da OMBRA e non chiesta al Motore. \
-                           Le ore di un file EPW sono in ora solare tutto l'anno, senza \
-                           spostamento estivo, e il fuso che le colloca nel giorno è quello \
-                           dichiarato dal file",
+                    istante: "centro dell'Ora",
+                    minuti_del_file_meteo: luogo.minuti_del_file_meteo.as_deref(),
+                    nota: match luogo.minuti_del_file_meteo {
+                        Some(_) => format!("{NOTA_DEL_SOLE}{NOTA_DEL_FILE_METEO}"),
+                        None => NOTA_DEL_SOLE.to_owned(),
+                    },
                 },
             )?;
             marcia(
@@ -799,18 +845,25 @@ pub fn esegui_progetto(dir: impl AsRef<Path>) -> Result<Rapporto, CorsaError> {
         let file = dir.join("periodi").join(format!("{}.toml", periodo.nome));
         ingressi.push(Ingresso::leggi(file, dir, "periodo"));
     }
-    let file_meteo: BTreeSet<&Path> = progetto.periodi.iter().map(|p| p.meteo.as_path()).collect();
     // Read once per distinct file and not once per Corsa: an EPW is 8760 records
     // and four Corse of a Progetto usually name the same one.
     //
     // A file that will not read is not fatal here. It is already an Ingresso,
     // so the Giornale records that it was missing or unreadable, and the sun
     // falls back to the time zone of the longitude — which the Giornale also
-    // says, in the same place as the zone itself.
-    let mut meteo: Vec<(&Path, Option<Epw>)> = Vec::new();
-    for file in file_meteo {
+    // says, in the same place as the zone itself. The error is kept and not
+    // dropped because one kind of it is fatal to a Corsa: a file that reads
+    // and is not hourly, which `coordinate` refuses.
+    let mut meteo: BTreeMap<&Path, Result<Epw, MeteoError>> = BTreeMap::new();
+    for periodo in &progetto.periodi {
+        meteo
+            .entry(periodo.meteo.as_path())
+            .or_insert_with_key(|file| Epw::leggi(file));
+    }
+    // In the order of the paths, which is the order a map keeps them in: the
+    // order of the Ingressi is part of the Impronta.
+    for file in meteo.keys() {
         ingressi.push(Ingresso::leggi(file, dir, "meteo"));
-        meteo.push((file, Epw::leggi(file).ok()));
     }
 
     let dir_corse = dir.join("corse");
@@ -838,10 +891,8 @@ pub fn esegui_progetto(dir: impl AsRef<Path>) -> Result<Rapporto, CorsaError> {
                 .expect("appena messo")
                 .2;
             let etichetta = format!("{} — {}", scenario.nome, periodo.nome);
-            let epw = meteo
-                .iter()
-                .find(|(file, _)| *file == periodo.meteo.as_path())
-                .and_then(|(_, epw)| epw.as_ref());
+            // Every Periodo put its own file in the map a few lines up.
+            let epw = meteo[periodo.meteo.as_path()].as_ref();
             corse.push(esegui(
                 &dir_corse, &progetto, scenario, periodo, raster, epw, &ingressi, &etichetta,
             )?);
