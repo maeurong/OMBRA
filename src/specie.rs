@@ -2,7 +2,7 @@
 //! drops its leaves.
 //!
 //! ENVI-met keeps these numbers in a plant database that ships with the program
-//! and is not part of an `.INX` file, so CLIMESH cannot read them from the case.
+//! and is not part of an `.INX` file, so OMBRA cannot read them from the case.
 //! The catalogue names below come from `casi/bastia/valori-di-riferimento.toml`,
 //! which read them from the file itself; the heights and trunk fractions are
 //! estimates for a mature specimen of each species, which is why every Albero

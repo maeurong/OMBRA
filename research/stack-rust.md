@@ -1,7 +1,7 @@
-# Ecosistema Rust per CLIMESH — geospaziale, meteo, binario singolo
+# Ecosistema Rust per OMBRA — geospaziale, meteo, binario singolo
 
-**Ticket**: [#4](https://github.com/maeurong/CLIMESH/issues/4) — vincoli dalla mappa [#1](https://github.com/maeurong/CLIMESH/issues/1).
-**Data ricerca**: 2026-08-31. **Repo**: CLIMESH, branch `main`, HEAD `7f23d42`. Nessun `Cargo.toml` presente, nessuna dipendenza già scelta nel codice.
+**Ticket**: [#4](https://github.com/maeurong/OMBRA/issues/4) — vincoli dalla mappa [#1](https://github.com/maeurong/OMBRA/issues/1).
+**Data ricerca**: 2026-08-31. **Repo**: OMBRA, branch `main`, HEAD `7f23d42`. Nessun `Cargo.toml` presente, nessuna dipendenza già scelta nel codice.
 **Metodo**: interrogazione diretta della API di crates.io (`/api/v1/crates/<nome>`, `/api/v1/crates/<nome>/<ver>/dependencies`) e lettura dei `Cargo.toml` e dei README dai repository sorgente via `raw.githubusercontent.com`; statistiche dei repository via API GitHub. Le classifiche e gli articoli di terzi non sono stati usati come fonte.
 
 **Convenzione di marcatura** (la stessa di `research/envi-met.md`)
@@ -125,7 +125,7 @@ Limiti dichiarati dagli autori, tutti `[P]` dallo stesso README:
 - *"This crate does not provide support for WKT"* — serve il crate separato `proj4wkt` per convertire WKT in stringa proj;
 - l'unità angolare naturale sono i **radianti**, non i gradi. Fonte di errori silenziosi.
 
-`[I]`: per CLIMESH serve trasformare fra WGS84 geografiche e una proiezione metrica (UTM 32N per l'Umbria, o Web Mercator per i tile). `proj4rs` copre esattamente questo. Il `Cargo.toml` nel repo dichiara già `version = "0.2.0"` non ancora pubblicata su crates.io: aspettarsi un salto di versione. `[P]` sul numero di versione nel repo.
+`[I]`: per OMBRA serve trasformare fra WGS84 geografiche e una proiezione metrica (UTM 32N per l'Umbria, o Web Mercator per i tile). `proj4rs` copre esattamente questo. Il `Cargo.toml` nel repo dichiara già `version = "0.2.0"` non ancora pubblicata su crates.io: aspettarsi un salto di versione. `[P]` sul numero di versione nel repo.
 
 Alternative minori `[P]`: `geodesy` 0.15.0 (MIT OR Apache-2.0, 2026-03-03, 55.831 download in 90 gg) è ben curato ma con un modello concettuale proprio; `utm` 0.1.6 è fermo al 2022 e fa solo UTM. `[I]`: `utm` basterebbe per il caso Bastia, ma non per un import OSM generico.
 
@@ -194,7 +194,7 @@ Se servirà accelerare l'intersezione raggio-geometria `[P]` su versioni: `parry
 
 Alternative `[P]`: `actix-web` 4.15.0 (MIT OR Apache-2.0, 2026-08-21, 9,9 milioni in 90 gg) — valido ma con un runtime proprio; `warp` 0.4.3 (MIT, 2026-05-04, 5 milioni) — stesso autore di hyper, meno usato di axum; `tiny_http` 0.12.0 (MIT OR Apache-2.0, **ultima release 2022-10-06**, 13,8 milioni in 90 gg) — sincrono e minimale, fermo da quattro anni ma ancora molto scaricato.
 
-**Raccomandazione** `[I]`: `axum`. Non per prestazioni — un server locale per una UI monoutente non ha carico — ma perché è lo standard di fatto, la documentazione è abbondante, e `tower-http` dà gratis compressione e CORS. `[I]` sul contro: `tokio` porta dentro un runtime asincrono completo, che il resto di CLIMESH (calcolo sincrono e parallelo con rayon) non usa. Se si volesse un binario davvero minimo, `tiny_http` con un thread pool sarebbe sufficiente; è però fermo dal 2022. Vale la pena metterlo sul tavolo per una decisione esplicita.
+**Raccomandazione** `[I]`: `axum`. Non per prestazioni — un server locale per una UI monoutente non ha carico — ma perché è lo standard di fatto, la documentazione è abbondante, e `tower-http` dà gratis compressione e CORS. `[I]` sul contro: `tokio` porta dentro un runtime asincrono completo, che il resto di OMBRA (calcolo sincrono e parallelo con rayon) non usa. Se si volesse un binario davvero minimo, `tiny_http` con un thread pool sarebbe sufficiente; è però fermo dal 2022. Vale la pena metterlo sul tavolo per una decisione esplicita.
 
 ### 7.2 Asset statici nel binario
 
@@ -240,7 +240,7 @@ Dalla documentazione ufficiale di rustc, dove **Tier 1 with Host Tools** signifi
 | `x86_64-apple-darwin` (Intel Mac) | Tier 2 with Host Tools |
 | `x86_64-unknown-linux-musl` | Tier 2 with Host Tools |
 
-`[I]`: tutte le piattaforme che interessano a CLIMESH sono Tier 1 o Tier 2 con host tools. Non c'è nessun rischio di piattaforma.
+`[I]`: tutte le piattaforme che interessano a OMBRA sono Tier 1 o Tier 2 con host tools. Non c'è nessun rischio di piattaforma.
 
 ### 9.2 Come si compila da Linux
 
@@ -262,7 +262,7 @@ Non ho potuto misurare direttamente: **nessun toolchain Rust è installato in qu
 | `dufs` (server HTTP con UI incorporata) | 0.46.0 | x86_64-unknown-linux-musl | 2,7 MB (compresso) |
 | `ripgrep` | 15.2.0 | x86_64-unknown-linux-musl | 2,1 MB (compresso) |
 
-**Stima `[I]`, non misura**: CLIMESH aggiunge a un profilo tipo `miniserve` il codice numerico (`ndarray`, `rayon`, il motore radiativo), l'I/O geospaziale (`tiff`, `shapefile`, `proj4rs` con le sue tabelle di definizione CRS), e gli asset JS della UI. Con `--release`, `lto = true`, `codegen-units = 1` e `strip = true` in `[profile.release]` mi aspetto **fra 8 e 20 MB**, dominati dagli asset incorporati più che dal codice: ECharts minificato da solo è dell'ordine del megabyte, uPlot di poche decine di kilobyte. Il numero va misurato al primo binario reale, non prima.
+**Stima `[I]`, non misura**: OMBRA aggiunge a un profilo tipo `miniserve` il codice numerico (`ndarray`, `rayon`, il motore radiativo), l'I/O geospaziale (`tiff`, `shapefile`, `proj4rs` con le sue tabelle di definizione CRS), e gli asset JS della UI. Con `--release`, `lto = true`, `codegen-units = 1` e `strip = true` in `[profile.release]` mi aspetto **fra 8 e 20 MB**, dominati dagli asset incorporati più che dal codice: ECharts minificato da solo è dell'ordine del megabyte, uPlot di poche decine di kilobyte. Il numero va misurato al primo binario reale, non prima.
 
 ---
 

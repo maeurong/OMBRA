@@ -14,13 +14,13 @@ use std::collections::HashSet;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
-use climesh::da_inx::{
+use ombra::da_inx::{
     celle, centro_cella_m, maschere_superfici, progetto_da_inx, unisci_rettangoli,
 };
-use climesh::dominio::*;
-use climesh::inx::{read_inx, Inx};
-use climesh::progetto;
-use climesh::specie;
+use ombra::dominio::*;
+use ombra::inx::{read_inx, Inx};
+use ombra::progetto;
+use ombra::specie;
 use serde::Deserialize;
 
 const RADICE: &str = env!("CARGO_MANIFEST_DIR");

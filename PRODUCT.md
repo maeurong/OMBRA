@@ -60,7 +60,7 @@ in una relazione senza mai aprire il programma.
 
 ## Product Purpose
 
-CLIMESH calcola il **comfort termico all'aperto** in uno spazio urbano — dove
+OMBRA calcola il **comfort termico all'aperto** in uno spazio urbano — dove
 cade l'ombra, quanta radiazione riceve una persona, quanto caldo sente — e lo fa
 in modo **riproducibile e citabile**.
 
@@ -82,11 +82,11 @@ Il panorama libero ha già tutti i pezzi e nessuno che li tenga insieme in modo
 usabile. PALM-4U supera la fisica di ENVI-met ma dichiara di non avere
 un'interfaccia pubblica e vuole un cluster. UMEP e SOLWEIG sono vivi, validati e
 citati, ma vivono dentro QGIS e pretendono che l'utente arrivi con i propri
-raster già pronti. CLIMESH sta nel mezzo: **la fisica di UMEP, presa così com'è,
+raster già pronti. OMBRA sta nel mezzo: **la fisica di UMEP, presa così com'è,
 dentro uno strumento che si apre.**
 
 Ma la posizione difendibile non è l'usabilità, che chiunque può copiare. È
-questa: **CLIMESH misura la grandezza che il modello risolve, e dichiara quanto
+questa: **OMBRA misura la grandezza che il modello risolve, e dichiara quanto
 di ciò che mostra è stimato.**
 
 Il caso studio di riferimento è la prova. La relazione da cui nasce il progetto
@@ -165,7 +165,7 @@ componente solo per Windows.
   Periodo invernale, non variando la trasmissività.
 
 **Licenza.** GPL-3 o AGPL-3. È una scelta di posizionamento oltre che etica: il
-copyleft è la promessa credibile che a CLIMESH non accadrà mai ciò che è appena
+copyleft è la promessa credibile che a OMBRA non accadrà mai ciò che è appena
 accaduto a ENVI-met.
 
 **Lingua dell'interfaccia: italiano e inglese, entrambe dal primo giorno.**
@@ -175,12 +175,13 @@ che l'utente li conosce.
 
 **Aperto.** Come si riempie la Provenienza quando l'altezza di un edificio manca
 davvero, cioè quale valore predefinito e con quale avviso. Il protocollo di
-confronto contro i risultati pubblicati del caso studio, dato che CLIMESH produce
+confronto contro i risultati pubblicati del caso studio, dato che OMBRA produce
 comfort radiativo e la relazione riporta temperatura dell'aria.
 
 ## Brand Commitments
 
-Il nome **CLIMESH** è fissato. La lingua di lavoro del progetto è l'italiano per
+Il nome **OMBRA** è fissato: *Outdoor Microclimate, Built-environment
+RAdiation*. Fino al 2026-11-10 il progetto si chiamava CLIMESH. La lingua di lavoro del progetto è l'italiano per
 i documenti e l'inglese per codice, nomi di API e termini tecnici.
 
 La voce è quella di uno strumento scientifico: dichiara cosa sa e cosa ha
@@ -229,7 +230,7 @@ originale restano fuori: non sono ridistribuibili. I numeri che ne derivano sì.
 
 1. **Misura ciò che il modello risolve.** Una grandezza il cui segnale sta dentro
    la barra d'errore non va mostrata come se fosse un risultato. È il principio
-   da cui nasce il progetto, e vale contro CLIMESH stesso quanto contro ENVI-met.
+   da cui nasce il progetto, e vale contro OMBRA stesso quanto contro ENVI-met.
 
 2. **La provenienza viaggia con l'oggetto, non con la corsa.** Ogni Edificio,
    ogni Albero, ogni Superficie sa da dove viene e quali dei suoi attributi sono
@@ -238,7 +239,7 @@ originale restano fuori: non sono ridistribuibili. I numeri che ne derivano sì.
 
 3. **Nessun risultato senza il suo giornale.** Un numero che non sa dire come è
    stato ottenuto non è citabile, e la citabilità è il prodotto. Senza il
-   Giornale, CLIMESH è soltanto un ENVI-met gratuito.
+   Giornale, OMBRA è soltanto un ENVI-met gratuito.
 
 4. **Funziona con il dato che c'è.** Il dato pubblico è incompleto e lo resterà.
    Uno strumento che pretende ingressi perfetti non viene usato; uno che accetta

@@ -1,5 +1,5 @@
 # Manifesto della copia vendorata: solo cio' che di UMEP-dev/solweig serve a
-# CLIMESH, elencato in PROVENIENZA.toml. Il manifesto a monte dichiara pyo3,
+# OMBRA, elencato in PROVENIENZA.toml. Il manifesto a monte dichiara pyo3,
 # numpy, wgpu e rayon; qui resta ndarray, alla stessa versione minore, perche'
 # due minori diverse sono due tipi diversi e ArrayView2<f32> non combacerebbe.
 [package]
@@ -7,7 +7,7 @@ name = "solweig-vendorato"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-only"
-description = "La parte di UMEP-dev/solweig che CLIMESH riusa, vendorata. Vedi PROVENIENZA.toml."
+description = "La parte di UMEP-dev/solweig che OMBRA riusa, vendorata. Vedi PROVENIENZA.toml."
 publish = false
 
 [dependencies]

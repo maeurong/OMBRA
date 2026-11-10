@@ -4,7 +4,7 @@
 //! that the two constants are not copies of each other, and that the choice of
 //! language does what a user expects.
 
-use climesh::lingua::{Lingua, INGLESE, ITALIANO};
+use ombra::lingua::{Lingua, INGLESE, ITALIANO};
 
 #[test]
 fn una_lingua_si_riconosce_dal_prefisso_del_codice() {
@@ -31,10 +31,10 @@ fn una_lingua_si_riconosce_dal_prefisso_del_codice() {
 
 #[test]
 fn l_ambiente_si_legge_nell_ordine_dichiarato() {
-    // `CLIMESH_LINGUA` wins over the locale, and `LC_ALL` over `LANG`, which is
+    // `OMBRA_LINGUA` wins over the locale, and `LC_ALL` over `LANG`, which is
     // the order the shell itself uses. A user who set the specific variable
     // meant it.
-    for variabile in ["CLIMESH_LINGUA", "LC_ALL", "LC_MESSAGES", "LANG"] {
+    for variabile in ["OMBRA_LINGUA", "LC_ALL", "LC_MESSAGES", "LANG"] {
         let solo_questa = |nome: &str| (nome == variabile).then(|| "it_IT.UTF-8".to_owned());
         assert_eq!(
             Lingua::dall_ambiente(solo_questa),

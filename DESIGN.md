@@ -1,4 +1,4 @@
-# Design — CLIMESH
+# Design — OMBRA
 
 Sistema di design bloccato. Ogni esecuzione futura di Hallmark legge questo file
 per primo, e le pagine gli si conformano invece di differenziarsi. Si emenda con
@@ -11,7 +11,7 @@ il perché; lì ci sono i numeri.
 
 - **Genere** · editorial
 - **Macrostruttura** · Map / Diagram — un unico grande diagramma spaziale organizza
-  la pagina. È la forma naturale di CLIMESH: il campo calcolato *è* il contenuto.
+  la pagina. È la forma naturale di OMBRA: il campo calcolato *è* il contenuto.
 - **Tema** · Grid — scuola svizzera dei sistemi, griglia a 12 colonne esposta,
   un solo grottesco, un solo inchiostro segnale speso in geometria.
 - **Assi** · carta chiara / display grotesk-heavy minuscolo / accento ultramarina

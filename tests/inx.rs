@@ -1,6 +1,6 @@
 //! Behaviour of the minimal ENVI-met `.INX` reader, degenerate inputs first.
 
-use climesh::inx::{parse_inx, read_inx};
+use ombra::inx::{parse_inx, read_inx};
 
 /// Wraps a body in the smallest header a valid `.INX` file has: a 3x2x4 grid,
 /// deliberately not the 50x50x25 of the reference case.

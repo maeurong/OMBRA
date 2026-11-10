@@ -14,11 +14,11 @@
 //! A verb that changed spelling with the environment would break a shell script
 //! on somebody else's machine.
 
-use climesh::corsa;
-use climesh::da_inx::progetto_da_inx;
-use climesh::inx::read_inx;
-use climesh::lingua::{Lingua, Messaggi, COSTRUISCI, ESEGUI, INTERROGA};
-use climesh::progetto;
+use ombra::corsa;
+use ombra::da_inx::progetto_da_inx;
+use ombra::inx::read_inx;
+use ombra::lingua::{Lingua, Messaggi, COSTRUISCI, ESEGUI, INTERROGA};
+use ombra::progetto;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -111,7 +111,7 @@ fn aiuto(m: &Messaggi) -> String {
 /// would have said.
 fn esegui(argomenti: &[String], m: &Messaggi) -> Result<String, Problema> {
     if argomenti.iter().any(|a| a == "--versione") {
-        return Ok(format!("climesh {}", env!("CARGO_PKG_VERSION")));
+        return Ok(format!("ombra {}", env!("CARGO_PKG_VERSION")));
     }
     if argomenti.is_empty() || argomenti.iter().any(|a| a == "--aiuto") {
         return Ok(aiuto(m));

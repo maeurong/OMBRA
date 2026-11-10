@@ -7,14 +7,14 @@
 //! `#[ignore]`, because a test that quietly passes when its input is missing is
 //! worse than no test.
 
-use climesh::dominio::Data;
-use climesh::meteo::Epw;
+use ombra::dominio::Data;
+use ombra::meteo::Epw;
 use std::path::Path;
 
 const LUOGO: &str = "LOCATION,Perugia,-,ITA,IGDG,161810,43.08,12.50,1.0,213.0";
 
 /// Seven filler header lines: an EPW has eight before the data, and only the
-/// first says anything CLIMESH reads.
+/// first says anything OMBRA reads.
 fn intestazione() -> String {
     let mut testo = String::from(LUOGO);
     for _ in 0..7 {
@@ -23,7 +23,7 @@ fn intestazione() -> String {
     testo
 }
 
-/// One data record. The columns CLIMESH reads are placed where the format puts
+/// One data record. The columns OMBRA reads are placed where the format puts
 /// them; everything else is filler.
 #[allow(clippy::too_many_arguments)]
 fn riga(
@@ -58,7 +58,7 @@ fn epw(righe: Vec<String>) -> String {
     format!("{}\n{}\n", intestazione(), righe.join("\n"))
 }
 
-fn leggi(testo: &str) -> Result<Epw, climesh::meteo::MeteoError> {
+fn leggi(testo: &str) -> Result<Epw, ombra::meteo::MeteoError> {
     Epw::da_testo(Path::new("prova.epw"), testo)
 }
 

@@ -1,4 +1,4 @@
-//! CLIMESH: simulazione del microclima urbano per il comfort termico all'aperto.
+//! OMBRA: simulazione del microclima urbano per il comfort termico all'aperto.
 
 pub mod comfort;
 pub mod corsa;

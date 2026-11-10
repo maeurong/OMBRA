@@ -2,9 +2,9 @@
 //!
 //! The polynomial itself is not written here. It is the sixth-order fit of
 //! Bröde et al., vendored in `vendor/solweig/src/utci.rs` and reused verbatim,
-//! for the reason the [choice of index](https://github.com/maeurong/CLIMESH/issues/3)
+//! for the reason the [choice of index](https://github.com/maeurong/OMBRA/issues/3)
 //! gives: UTCI has **one** authoritative polynomial, which is what makes a
-//! number produced by CLIMESH comparable with a number produced by anything
+//! number produced by OMBRA comparable with a number produced by anything
 //! else. Two hundred and ten coefficients retyped would be two hundred and ten
 //! chances to produce an index that is nobody's.
 //!
@@ -24,7 +24,7 @@ use crate::derivazione::Raster;
 ///
 /// One sentinel does survive from upstream: an argument at or below -999
 /// returns -999, which is how the reference implementation marks an input it
-/// will not evaluate. Nothing in CLIMESH can produce such an argument — a
+/// will not evaluate. Nothing in OMBRA can produce such an argument — a
 /// missing weather value is `None` and never a number — and
 /// [`fuori_intervallo`] reports it as out of range, but the behaviour is
 /// pinned by a test rather than assumed away.
@@ -103,7 +103,7 @@ pub fn banda(utci_c: f64) -> &'static str {
 /// temperature, humidity and wind of one hour.
 ///
 /// The three meteorological values are uniform over the Griglia, as the
-/// [seam between the providers](https://github.com/maeurong/CLIMESH/issues/10)
+/// [seam between the providers](https://github.com/maeurong/OMBRA/issues/10)
 /// prescribes: today they come from one weather file for the whole domain, and
 /// the day one of them becomes a field per cell, this signature is the one that
 /// changes.

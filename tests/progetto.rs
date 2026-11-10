@@ -1,5 +1,5 @@
-use climesh::dominio::*;
-use climesh::progetto;
+use ombra::dominio::*;
+use ombra::progetto;
 
 fn progetto_di_prova() -> Progetto {
     Progetto {

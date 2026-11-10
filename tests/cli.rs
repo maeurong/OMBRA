@@ -13,13 +13,13 @@ use std::process::{Command, Output};
 /// Wrong usage. `1` is a command that ran and failed.
 const USO_SBAGLIATO: i32 = 2;
 
-fn climesh(argomenti: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_climesh"))
+fn ombra(argomenti: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_ombra"))
         .args(argomenti)
         // The tests state the language rather than inheriting it: a suite whose
         // assertions depend on the machine's locale passes at home and fails in
         // continuous integration.
-        .env_remove("CLIMESH_LINGUA")
+        .env_remove("OMBRA_LINGUA")
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
         .env_remove("LANG")
@@ -99,7 +99,7 @@ fn scrivi_inx(dir: &Path) -> PathBuf {
 /// hours, written through the library so the command line has something real
 /// to run.
 fn scrivi_progetto(dir: &Path) {
-    use climesh::dominio::*;
+    use ombra::dominio::*;
     let epw = scrivi_epw(dir);
     let progetto = Progetto {
         nome: "prova".into(),
@@ -152,7 +152,7 @@ fn scrivi_progetto(dir: &Path) {
             },
         }],
     };
-    climesh::progetto::scrivi(dir, &progetto).unwrap();
+    ombra::progetto::scrivi(dir, &progetto).unwrap();
 }
 
 #[test]
@@ -160,15 +160,15 @@ fn senza_argomenti_stampa_l_aiuto_e_riesce() {
     // Not an error: a user who types the name of a program is asking what it
     // does, and answering with exit code 2 would make a shell script think the
     // invocation was malformed.
-    let esito = climesh(&[]);
+    let esito = ombra(&[]);
     assert_eq!(codice(&esito), 0);
     assert!(uscita(&esito).contains("costruisci"), "{}", uscita(&esito));
 }
 
 #[test]
 fn l_aiuto_esce_nella_lingua_chiesta() {
-    let italiano = climesh(&["--lingua", "it", "--aiuto"]);
-    let inglese = climesh(&["--lingua", "en", "--aiuto"]);
+    let italiano = ombra(&["--lingua", "it", "--aiuto"]);
+    let inglese = ombra(&["--lingua", "en", "--aiuto"]);
     assert!(
         uscita(&italiano).starts_with("uso:"),
         "{}",
@@ -190,16 +190,16 @@ fn l_aiuto_esce_nella_lingua_chiesta() {
 
 #[test]
 fn la_lingua_si_scrive_anche_con_l_uguale() {
-    assert!(uscita(&climesh(&["--lingua=it", "--aiuto"])).starts_with("uso:"));
+    assert!(uscita(&ombra(&["--lingua=it", "--aiuto"])).starts_with("uso:"));
 }
 
 #[test]
 fn senza_lingua_dichiarata_la_decide_l_ambiente() {
-    let esito = Command::new(env!("CARGO_BIN_EXE_climesh"))
+    let esito = Command::new(env!("CARGO_BIN_EXE_ombra"))
         .arg("--aiuto")
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
-        .env("CLIMESH_LINGUA", "it_IT.UTF-8")
+        .env("OMBRA_LINGUA", "it_IT.UTF-8")
         .output()
         .unwrap();
     assert!(uscita(&esito).starts_with("uso:"), "{}", uscita(&esito));
@@ -207,24 +207,24 @@ fn senza_lingua_dichiarata_la_decide_l_ambiente() {
 
 #[test]
 fn una_lingua_che_non_c_e_e_un_errore_d_uso() {
-    let esito = climesh(&["--lingua", "de", "--aiuto"]);
+    let esito = ombra(&["--lingua", "de", "--aiuto"]);
     assert_eq!(codice(&esito), USO_SBAGLIATO);
     assert!(errori(&esito).contains("de"), "{}", errori(&esito));
 }
 
 #[test]
 fn la_versione_e_quella_del_pacchetto() {
-    let esito = climesh(&["--versione"]);
+    let esito = ombra(&["--versione"]);
     assert_eq!(codice(&esito), 0);
     assert_eq!(
         uscita(&esito).trim(),
-        format!("climesh {}", env!("CARGO_PKG_VERSION"))
+        format!("ombra {}", env!("CARGO_PKG_VERSION"))
     );
 }
 
 #[test]
 fn un_comando_che_non_esiste_esce_con_due_e_mostra_l_aiuto() {
-    let esito = climesh(&["--lingua", "it", "pippo"]);
+    let esito = ombra(&["--lingua", "it", "pippo"]);
     assert_eq!(codice(&esito), USO_SBAGLIATO);
     assert!(errori(&esito).contains("pippo"), "{}", errori(&esito));
     assert!(errori(&esito).contains("uso:"), "{}", errori(&esito));
@@ -234,28 +234,28 @@ fn un_comando_che_non_esiste_esce_con_due_e_mostra_l_aiuto() {
 fn un_opzione_che_non_esiste_non_viene_ignorata() {
     // The third possible answer — accept it and do nothing — is the worst: a
     // misspelt flag would silently not apply.
-    let esito = climesh(&["--lingua", "it", "esegui", "cartella", "--tutto"]);
+    let esito = ombra(&["--lingua", "it", "esegui", "cartella", "--tutto"]);
     assert_eq!(codice(&esito), USO_SBAGLIATO);
     assert!(errori(&esito).contains("--tutto"), "{}", errori(&esito));
 }
 
 #[test]
 fn un_argomento_di_troppo_e_un_errore_e_non_un_argomento_ignorato() {
-    let esito = climesh(&["--lingua", "it", "esegui", "una", "due"]);
+    let esito = ombra(&["--lingua", "it", "esegui", "una", "due"]);
     assert_eq!(codice(&esito), USO_SBAGLIATO);
     assert!(errori(&esito).contains("due"), "{}", errori(&esito));
 }
 
 #[test]
 fn un_argomento_che_manca_viene_nominato() {
-    let esito = climesh(&["--lingua", "it", "costruisci"]);
+    let esito = ombra(&["--lingua", "it", "costruisci"]);
     assert_eq!(codice(&esito), USO_SBAGLIATO);
     assert!(
         errori(&esito).contains("<modello.inx>"),
         "{}",
         errori(&esito)
     );
-    let esito = climesh(&["--lingua", "it", "costruisci", "modello.inx"]);
+    let esito = ombra(&["--lingua", "it", "costruisci", "modello.inx"]);
     assert!(errori(&esito).contains("<cartella>"), "{}", errori(&esito));
 }
 
@@ -264,7 +264,7 @@ fn una_cartella_che_non_e_un_progetto_fallisce_con_uno_e_non_con_due() {
     // Called correctly, and the answer is no. A script that retried this as a
     // usage error would retry it forever.
     let dir = tempdir("cli-cartella-vuota");
-    let esito = climesh(&["--lingua", "it", "esegui", dir.to_str().unwrap()]);
+    let esito = ombra(&["--lingua", "it", "esegui", dir.to_str().unwrap()]);
     assert_eq!(codice(&esito), 1, "{}", errori(&esito));
     assert!(errori(&esito).starts_with("errore:"), "{}", errori(&esito));
 }
@@ -277,7 +277,7 @@ fn costruisci_scrive_un_progetto_e_dice_che_non_ha_periodi() {
     let dir = tempdir("cli-costruisci");
     let modello = scrivi_inx(&dir);
     let uscita_dir = dir.join("progetto");
-    let esito = climesh(&[
+    let esito = ombra(&[
         "--lingua",
         "it",
         "costruisci",
@@ -306,7 +306,7 @@ fn esegui_e_interroga_lavorano_sullo_stesso_progetto() {
     let dir = tempdir("cli-esegui");
     scrivi_progetto(&dir);
 
-    let esito = climesh(&["--lingua", "it", "esegui", dir.to_str().unwrap()]);
+    let esito = ombra(&["--lingua", "it", "esegui", dir.to_str().unwrap()]);
     assert_eq!(codice(&esito), 0, "{}", errori(&esito));
     let detto = uscita(&esito);
     assert!(detto.contains("1 Corsa"), "{detto}");
@@ -320,7 +320,7 @@ fn esegui_e_interroga_lavorano_sullo_stesso_progetto() {
         .expect("il rapporto porta il percorso del Giornale");
     assert!(Path::new(giornale).is_file(), "{giornale}");
 
-    let esito = climesh(&["--lingua", "it", "interroga", giornale]);
+    let esito = ombra(&["--lingua", "it", "interroga", giornale]);
     assert_eq!(codice(&esito), 0, "{}", errori(&esito));
     let detto = uscita(&esito);
     assert!(detto.contains("citazione:"), "{detto}");
@@ -336,7 +336,7 @@ fn esegui_e_interroga_lavorano_sullo_stesso_progetto() {
         "un Periodo che contiene mezzogiorno deve avere del sole: {detto}"
     );
 
-    let inglese = climesh(&["--lingua", "en", "interroga", giornale]);
+    let inglese = ombra(&["--lingua", "en", "interroga", giornale]);
     let detto = uscita(&inglese);
     // The Giornale's own words — «riuscita» — are not translated: they are what
     // the file records, and a summary that reworded them would show something
@@ -351,6 +351,6 @@ fn interroga_su_un_file_che_non_e_un_giornale_fallisce_con_uno() {
     let dir = tempdir("cli-interroga-storto");
     let file = dir.join("non-un-giornale.toml");
     fs::write(&file, "questo non e' TOML = = =\n").unwrap();
-    let esito = climesh(&["--lingua", "it", "interroga", file.to_str().unwrap()]);
+    let esito = ombra(&["--lingua", "it", "interroga", file.to_str().unwrap()]);
     assert_eq!(codice(&esito), 1, "{}", errori(&esito));
 }

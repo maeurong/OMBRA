@@ -1,6 +1,6 @@
 # 01 — Quattro fatti del passo fuso di monte
 
-Ticket: maeurong/CLIMESH#30 (parte di #29). Dossier d'ingresso: `research/catena-radiativa.md`
+Ticket: maeurong/OMBRA#30 (parte di #29). Dossier d'ingresso: `research/catena-radiativa.md`
 §4 (righe 187-200), §5 (righe 204-234), §8 (riga 286).
 
 **Fonte unica: codice di monte al commit pinnato.** `UMEP-dev/solweig` HEAD
@@ -10,7 +10,7 @@ Ogni `percorso:riga` sotto è relativo a quel clone e a quel commit. Nessuna pag
 
 Tag: `[V]` letto nel sorgente · `[M]` misurato con comando · `[INF]` inferenza · `[NON TROVATO]`.
 
-Lavoro fatto da: CLIMESH branch `research/passo-fuso`, HEAD `fdd9e13`.
+Lavoro fatto da: OMBRA branch `research/passo-fuso`, HEAD `fdd9e13`.
 
 ## Premesse del dossier corrette
 
@@ -22,10 +22,10 @@ cambiano le risposte.
    a `:1172`. `use_scheme = sch.is_some()` (`:647`), cioè `ground_scheme` presente. Nella chiusura
    (`:709`-`:1953`) non c'è nessun altro `return` che dipenda dal sole: `grep -n "return\b"
    rust/src/pipeline.rs` trova solo `:1149` e il `return;` di un pixel non valido a `:1320`. `[V]`
-2. **Tre degli otto siti di `psi` stanno fuori dal percorso che CLIMESH esegue.** `:826`, `:862`,
+2. **Tre degli otto siti di `psi` stanno fuori dal percorso che OMBRA esegue.** `:826`, `:862`,
    `:1090` sono dentro il ramo 2026a (`:796`-`:1172`), che il dossier §3 lascia spento
    (`ground_scheme = None`). `:1571` è dentro `#[cfg(feature = "gpu")]` (`:1549`), e il manifesto
-   vendorato non dichiara la feature (`vendor/solweig/Cargo.toml:22-25` del repo CLIMESH). `[V]`
+   vendorato non dichiara la feature (`vendor/solweig/Cargo.toml:22-25` del repo OMBRA). `[V]`
 3. **`:826` e `:1383` non sono letture fisiche ma legature** (`let psi = weather.psi;`): il
    valore entra nella fisica solo dove `psi` viene passato. `[V]`
 
@@ -37,7 +37,7 @@ cambiano le risposte.
 `psi = compute_transmissivity(doy, physics, conifer)` (`pysrc/solweig/computation.py:277`), e lo
 passa a `WeatherScalars(psi=float(psi))` (`:351`). `[V]`
 
-| Sito | Dove va `psi` | Raggio o cielo | Firma oggi | Percorso CLIMESH |
+| Sito | Dove va `psi` | Raggio o cielo | Firma oggi | Percorso OMBRA |
 |---|---|---|---|---|
 | `pipeline.rs:744` | `bldg_sh - &((1.0 - veg_sh) * (1.0 - weather.psi))`, espressione in linea | **raggio**: `veg_sh` è l'ombra delle chiome sul raggio del sole, da `calculate_shadows_rust(weather.sun_azimuth, weather.sun_altitude, …)` (`:718-738`) | nessuna funzione; `weather.psi: f32` | attivo |
 | `pipeline.rs:862` | `compute_ani_lum_from_packed(shmat_a, vegshmat_a, lv.column(2), psi, valid_v)` | cielo (patch della volta) | `psi: f32` (`pipeline_radiation.rs:378`) | spento (2026a) |
@@ -68,7 +68,7 @@ Tutti `[V]`, per lettura.
 
 **Conteggio rispetto ad ADR 0004.** Usi fisici nel Rust: 1 raggio (`:744`) e 5 cielo (`:862`,
 `:1090`, `:1571`, `:1699`, `:1803`), più `svfbuveg` in Python. Con le due legature si arriva a 8
-righe, che è il conteggio del dossier. Sul percorso che CLIMESH esegue (classico, CPU) i punti
+righe, che è il conteggio del dossier. Sul percorso che OMBRA esegue (classico, CPU) i punti
 toccati sono 1 raggio (`:744`) più 1 cielo per modo (`:1699` anisotropo, `:1803` isotropo), più
 `svfbuveg`. Il «sette per il cielo» dell'ADR vale solo se si contano anche i siti spenti e le
 legature. `[V]` sul conteggio, `[INF]` sulla lettura che ne dà l'ADR.
@@ -84,7 +84,7 @@ legature. `[V]` sul conteggio, `[INF]` sulla lettura che ne dà l'ADR.
 - `kside_veg_isotropic_pure`: `psi: f32` diventa `psi: ArrayView2<f32>`, e si legge `psi[(r, c)]`
   alle righe `:413-419`. Quattro righe di corpo.
 - `dispatch_begin` (GPU): `psi` sta in un uniform, quindi un raster vorrebbe un buffer di storage e
-  un cambio di shader. Il percorso è spento in CLIMESH e resta fuori.
+  un cambio di shader. Il percorso è spento in OMBRA e resta fuori.
 
 La fisica non cambia: in tutti i siti CPU `psi` entra già per cella, dentro il ciclo sul pixel, e
 la formula per cella resta la stessa.
@@ -144,7 +144,7 @@ FMA senza richiesta esplicita. `[INF]`
 inverte. È la frazione di cielo che le chiome non oscurano, contando anche le chiome che
 stanno nell'ombra degli edifici. `[V]` sul codice, `[INF]` sull'interpretazione.
 
-**Per CLIMESH.** Con `use_veg` falso i campi diventano `ones` (`precomputed.py:148-152`). Nel
+**Per OMBRA.** Con `use_veg` falso i campi diventano `ones` (`precomputed.py:148-152`). Nel
 `skyview.rs` vendorato i campi ci sono (`grep -c svf_veg_blocks_bldg_sh
 vendor/solweig/src/skyview.rs` → 42), ma oggi `src/motore.rs` legge solo `svf` e `svf_veg`
 (dossier §5). `[M]` sul conteggio. La composizione per più Strati del dossier §6 tocca anche
@@ -173,7 +173,7 @@ questa grandezza, ed è una questione della Fase 3. `[INF]`
    (`vegetation.rs:427`). Perez usa `(Dh + I)/Dh` (`perez.rs:265`), che è la definizione con `I`
    normale.
 
-**Conseguenza per CLIMESH.** L'EPW dà già DNI e DHI, quindi `direct_rad = DNI` e
+**Conseguenza per OMBRA.** L'EPW dà già DNI e DHI, quindi `direct_rad = DNI` e
 `diffuse_rad = DHI` senza conversione, esattamente come fa monte. `[INF]` dalla lettura
 
 **Caveat.** Con i valori misurati, `direct_rad` **non** viene azzerato di notte: resta quello
@@ -218,7 +218,7 @@ a `weather.py:270-271`):
 2. Poi sovrascrive in base al giorno (`:653-657`): di giorno `firstdaytime = 0.0`; di notte
    `firstdaytime = 1.0` e `timeadd = 0.0`, **scartando** il `timeadd` appena restituito dal Rust.
 3. Solo con lo schema 2026a attivo porta avanti `tg`, `rn`, `rn_past`, `g` e `shadow_past`
-   (`:661-667`). In CLIMESH no.
+   (`:661-667`). In OMBRA no.
 4. `timestep_dec` non lo tocca: arriva dallo stato (`computation.py:575`).
 
 **Che cosa ne segue nel ritardo termico.** `[INF]` dalla lettura di `ground.rs:134-226`. Con

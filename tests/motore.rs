@@ -5,12 +5,12 @@
 //! Row 0 of every raster is the northernmost, and the azimuth is degrees from
 //! north clockwise, as everywhere else in the project.
 
-use climesh::derivazione::{
+use ombra::derivazione::{
     Raster, StratoDiChioma, TRASMISSIVITA_CON_FOGLIE, TRASMISSIVITA_SENZA_FOGLIE,
 };
-use climesh::dominio::Data;
-use climesh::motore::{ombre, sky_view_factor, versione, SkyViewFactor, ALTEZZA_MINIMA_GRADI};
-use climesh::sole::{posizione, PosizioneSolare};
+use ombra::dominio::Data;
+use ombra::motore::{ombre, sky_view_factor, versione, SkyViewFactor, ALTEZZA_MINIMA_GRADI};
+use ombra::sole::{posizione, PosizioneSolare};
 
 /// Bastia Umbra, the reference case: the coordinates read from the model, not
 /// the ones of the weather station.
@@ -480,15 +480,15 @@ fn nel_caso_di_riferimento_i_due_scenari_non_danno_piu_la_stessa_ombra() {
     // the shadow calculation, 616 trees and 846 trees produced fields identical
     // to the last digit — and two identical results read as "the planting does
     // nothing", which is a claim the model was not entitled to make.
-    let progetto = climesh::progetto::leggi("casi/bastia/progetto").unwrap();
+    let progetto = ombra::progetto::leggi("casi/bastia/progetto").unwrap();
     let sole = sole_a(45.0, 180.0);
-    let campo = |nome: &str, periodo: &climesh::dominio::Periodo| {
+    let campo = |nome: &str, periodo: &ombra::dominio::Periodo| {
         let scenario = progetto
             .scenari
             .iter()
             .find(|s| s.nome == nome)
             .expect("il caso di riferimento porta questo Scenario");
-        let raster = climesh::derivazione::deriva(&progetto.griglia, scenario, periodo).unwrap();
+        let raster = ombra::derivazione::deriva(&progetto.griglia, scenario, periodo).unwrap();
         ombre(
             &raster.modello_di_superficie,
             progetto.griglia.passo_m,
@@ -523,7 +523,7 @@ fn nel_caso_di_riferimento_i_due_scenari_non_danno_piu_la_stessa_ombra() {
 //
 // The fraction of the sky hemisphere a cell can see. Unlike a shadow it does
 // not depend on the sun, so it is a property of the Scenario and not of the
-// hour, and it is the first quantity of the radiative chain CLIMESH can report
+// hour, and it is the first quantity of the radiative chain OMBRA can report
 // on its own.
 
 fn cielo(dsm: &Raster, strati: &[StratoDiChioma]) -> SkyViewFactor {
@@ -750,7 +750,7 @@ fn un_secondo_strato_toglie_altro_cielo_e_non_ne_restituisce() {
 
 #[test]
 fn nel_caso_di_riferimento_lo_scenario_piantumato_vede_meno_cielo() {
-    let progetto = climesh::progetto::leggi("casi/bastia/progetto").unwrap();
+    let progetto = ombra::progetto::leggi("casi/bastia/progetto").unwrap();
     let periodo = &progetto.periodi[0];
     let campo = |nome: &str| {
         let scenario = progetto
@@ -758,7 +758,7 @@ fn nel_caso_di_riferimento_lo_scenario_piantumato_vede_meno_cielo() {
             .iter()
             .find(|s| s.nome == nome)
             .expect("il caso di riferimento porta questo Scenario");
-        let raster = climesh::derivazione::deriva(&progetto.griglia, scenario, periodo).unwrap();
+        let raster = ombra::derivazione::deriva(&progetto.griglia, scenario, periodo).unwrap();
         sky_view_factor(
             &raster.modello_di_superficie,
             progetto.griglia.passo_m,

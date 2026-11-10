@@ -1,11 +1,11 @@
 [package]
-name = "climesh"
+name = "ombra"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 readme = "README.md"
 description = "Simulazione del microclima urbano per il comfort termico all'aperto"
-repository = "https://github.com/maeurong/CLIMESH"
+repository = "https://github.com/maeurong/OMBRA"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

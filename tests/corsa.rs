@@ -5,10 +5,10 @@
 //! substring: a Giornale that does not re-read does not exist, because the page
 //! and the print sheet are renderings of that one file.
 
-use climesh::giornale::{
+use ombra::giornale::{
     conta_provenienza, inviluppo, somma_di_controllo, Giornale, Impronta, Ingresso, ASSENTE,
 };
-use climesh::motore;
+use ombra::motore;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
@@ -283,7 +283,7 @@ fn un_ingresso_assente_non_e_mai_identico_a_uno_presente() {
 
 #[test]
 fn la_provenienza_si_conta_per_anello_della_catena() {
-    use climesh::dominio::*;
+    use ombra::dominio::*;
     let provenienza = |altezza| Provenienza {
         origine: "prova".into(),
         altezza,
@@ -385,7 +385,7 @@ fn l_impronta_cambia_se_cambia_il_percorso_di_un_ingresso() {
 /// Corsa across a change of engine.
 #[test]
 fn l_impronta_cambia_se_cambia_il_motore() {
-    let motore = |commit: &str, data: &str| climesh::motore::VersioneMotore {
+    let motore = |commit: &str, data: &str| ombra::motore::VersioneMotore {
         commit: commit.to_owned(),
         data_presa: data.to_owned(),
     };
@@ -407,7 +407,7 @@ fn l_impronta_cambia_se_cambia_il_motore() {
 /// make a red test green.
 #[test]
 fn l_impronta_di_ingressi_fissati_vale_questa() {
-    let motore = climesh::motore::VersioneMotore {
+    let motore = ombra::motore::VersioneMotore {
         commit: "0000000000000000000000000000000000000000".into(),
         data_presa: "2026-01-01".into(),
     };
@@ -465,7 +465,7 @@ fn un_giornale_sotto_una_cartella_collegata_e_rifiutato() {
     std::os::unix::fs::symlink(dir.join("altrove"), dir.join("corse")).unwrap();
     let err = Giornale::apri(&dir, "corse/abc/giornale.toml").expect_err("deve fallire");
     assert!(
-        matches!(err, climesh::giornale::GiornaleError::Collegamento(_)),
+        matches!(err, ombra::giornale::GiornaleError::Collegamento(_)),
         "variante: {err:?}"
     );
     assert!(
@@ -482,7 +482,7 @@ fn un_giornale_che_e_un_collegamento_e_rifiutato() {
     std::os::unix::fs::symlink(dir.join("fuori.toml"), dir.join("giornale.toml")).unwrap();
     let err = Giornale::apri(&dir, "giornale.toml").expect_err("deve fallire");
     assert!(
-        matches!(err, climesh::giornale::GiornaleError::Collegamento(_)),
+        matches!(err, ombra::giornale::GiornaleError::Collegamento(_)),
         "variante: {err:?}"
     );
     assert_eq!(
@@ -496,8 +496,8 @@ fn un_giornale_che_e_un_collegamento_e_rifiutato() {
 // La Corsa
 // ---------------------------------------------------------------------------
 
-use climesh::corsa;
-use climesh::dominio::{
+use ombra::corsa;
+use ombra::dominio::{
     Albero, Data, Edificio, FonteAltezza, Griglia, Periodo, Progetto, Provenienza,
     PuntoDiOsservazione, Rettangolo, Scenario,
 };
@@ -573,7 +573,7 @@ fn periodo(nome: &str, mese: u32, giorno: u32, ore: u32) -> Periodo {
 
 fn scrivi_ed_esegui(nome: &str, progetto: &Progetto) -> (PathBuf, corsa::Rapporto) {
     let dir = tempdir_di_prova(nome);
-    climesh::progetto::scrivi(&dir, progetto).unwrap();
+    ombra::progetto::scrivi(&dir, progetto).unwrap();
     let rapporto = corsa::esegui_progetto(&dir).unwrap();
     (dir, rapporto)
 }
@@ -776,7 +776,7 @@ fn il_fuso_orario_della_corsa_viene_dal_file_meteo() {
     let epw = scrivi_epw(&dir, 3.0);
     let mut progetto = progetto_di_prova(6, vec![periodo("estate", 7, 15, 2)]);
     progetto.periodi[0].meteo = epw;
-    climesh::progetto::scrivi(&dir, &progetto).unwrap();
+    ombra::progetto::scrivi(&dir, &progetto).unwrap();
     let rapporto = corsa::esegui_progetto(&dir).unwrap();
     let tabella = rileggi(&rapporto.corse[0].giornale);
 
@@ -793,7 +793,7 @@ fn un_fuso_a_mezz_ora_arriva_intero_fino_al_giornale() {
     let epw = scrivi_epw(&dir, 5.75);
     let mut progetto = progetto_di_prova(6, vec![periodo("estate", 7, 15, 2)]);
     progetto.periodi[0].meteo = epw;
-    climesh::progetto::scrivi(&dir, &progetto).unwrap();
+    ombra::progetto::scrivi(&dir, &progetto).unwrap();
     let rapporto = corsa::esegui_progetto(&dir).unwrap();
     assert_eq!(
         rileggi(&rapporto.corse[0].giornale)["sole"]["fuso_ore"].as_float(),
@@ -809,7 +809,7 @@ fn senza_file_meteo_il_fuso_torna_alla_longitudine_e_il_giornale_lo_dice() {
     let dir = tempdir_di_prova("fuso-senza-meteo");
     let mut progetto = progetto_di_prova(6, vec![periodo("estate", 7, 15, 2)]);
     progetto.periodi[0].meteo = dir.join("questo-file-non-esiste.epw");
-    climesh::progetto::scrivi(&dir, &progetto).unwrap();
+    ombra::progetto::scrivi(&dir, &progetto).unwrap();
     let rapporto = corsa::esegui_progetto(&dir).unwrap();
     let tabella = rileggi(&rapporto.corse[0].giornale);
 
@@ -891,7 +891,7 @@ fn un_punto_fuori_dalla_griglia_non_arriva_mai_a_una_corsa() {
     let dir = tempdir_di_prova("punto-fuori");
     let mut progetto = progetto_di_prova(6, vec![periodo("estate", 7, 15, 2)]);
     progetto.punti = vec![punto(1, (2.5, 2.5)), punto(2, (99.0, 99.0))];
-    let errore = climesh::progetto::scrivi(&dir, &progetto)
+    let errore = ombra::progetto::scrivi(&dir, &progetto)
         .unwrap_err()
         .to_string();
     assert!(errore.contains("punto di osservazione 2"), "{errore}");
@@ -906,7 +906,7 @@ fn un_punto_sul_bordo_lontano_e_fuori_come_ovunque_nel_progetto() {
     let dir = tempdir_di_prova("punto-sul-bordo");
     let mut progetto = progetto_di_prova(6, vec![periodo("estate", 7, 15, 2)]);
     progetto.punti = vec![punto(1, (6.0, 3.0))];
-    assert!(climesh::progetto::scrivi(&dir, &progetto).is_err());
+    assert!(ombra::progetto::scrivi(&dir, &progetto).is_err());
 
     // Just inside, it is accepted and it gets its series.
     progetto.punti = vec![punto(1, (5.999, 3.0))];

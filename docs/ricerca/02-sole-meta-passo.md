@@ -1,12 +1,12 @@
 # 02 — Sole a metà passo: convenzione di monte contro `sole.rs`
 
-Ticket: maeurong/CLIMESH#31 (parte di #29, blocca #34). Dossier d'ingresso:
+Ticket: maeurong/OMBRA#31 (parte di #29, blocca #34). Dossier d'ingresso:
 `research/catena-radiativa.md:212` (riga «posizione del sole») e `:229` (riga `timestep_dec`).
 
 **Fonti.** Codice di monte al commit pinnato `UMEP-dev/solweig`
 `02246ab71a3a8b127d740dde9640449ee9d558ff`, clone in `/tmp/monte` (`git -C /tmp/monte rev-parse HEAD`);
-i `percorso:riga` di monte sono relativi a `/tmp/monte`. Codice di CLIMESH dal branch
-`research/passo-fuso`, HEAD `fdd9e13`; i `percorso:riga` di CLIMESH sono relativi alla radice del repo.
+i `percorso:riga` di monte sono relativi a `/tmp/monte`. Codice di OMBRA dal branch
+`research/passo-fuso`, HEAD `fdd9e13`; i `percorso:riga` di OMBRA sono relativi alla radice del repo.
 Una sola pagina web, catturata in `fonti/`.
 
 Tag: `[V]` letto nella fonte · `[M]` misurato con comando · `[INF]` inferenza · `[NON TROVATO]`.
@@ -61,7 +61,7 @@ silenzio; se tutte le righe hanno minuto 60 il lettore fallisce con «EPW file c
 (`io_epw.py:411-412`). Il minuto del file di Bastia `[NON TROVATO]`: `ITA_Perugia.161810_IGDG.epw` sta in
 `materiale università/`, assente da questa macchina.
 
-## 2. Convenzione di CLIMESH
+## 2. Convenzione di OMBRA
 
 **`sole::posizione` è istantanea.** Prende `ora_locale_h`, «the hour of the local clock», e `fuso_ore`
 (`src/sole.rs:28-39`), e la usa così com'è sia nella frazione d'anno (`:42`) sia nell'angolo orario
@@ -90,12 +90,12 @@ l'istante indicato.** `[V]`
 
 - **URL** https://bigladdersoftware.com/epx/docs/24-2/auxiliary-programs/energyplus-weather-file-epw-data-dictionary.html · [V]
   (cattura `fonti/energyplus-24-2-epw-data-dictionary.md`, sidecar accanto)
-  **perche' conta qui** è il dizionario dati del formato che CLIMESH legge (`src/meteo.rs`) e che monte
+  **perche' conta qui** è il dizionario dati del formato che OMBRA legge (`src/meteo.rs`) e che monte
   legge (`io_epw.py`); decide a quale intervallo appartiene ogni record.
   **cosa se ne prende** riga 369 della cattura: «Hour 1 is 00:01 to 01:00», ore 1-24; riga 373: minuto
   «(1..60)»; righe 451, 455, 459: globale, diretta normale e diffusa orizzontale «received ... during the
   number of minutes preceding the time indicated». Quindi il centro dell'intervallo del record H è
-  H − 0:30, che è l'istante di monte e non quello di CLIMESH.
+  H − 0:30, che è l'istante di monte e non quello di OMBRA.
 
 Staleness: la cattura è della documentazione EnergyPlus 24.2, l'ultima versione pubblicata su
 bigladdersoftware (le URL `25-1`, `25-2` rispondono 404, `[M]` con `curl -s -o /dev/null -w "%{http_code}"`).
@@ -106,8 +106,8 @@ frase compare nelle versioni 8.x della stessa documentazione.
 
 **Cosa è stato eseguito.** `[M]`
 
-- Rust: crate di prova nello scratchpad con dipendenza di percorso su CLIMESH (`fdd9e13`), che chiama
-  `climesh::sole::posizione(Data{2021, m, g}, h, 1.0, 43.07, 12.56)` per h = 4,0..21,0 a mezz'ora, il 21/6 e
+- Rust: crate di prova nello scratchpad con dipendenza di percorso su OMBRA (`fdd9e13`), che chiama
+  `ombra::sole::posizione(Data{2021, m, g}, h, 1.0, 43.07, 12.56)` per h = 4,0..21,0 a mezz'ora, il 21/6 e
   il 21/12/2021. Comando:
   `cargo run -q --release --manifest-path <scratchpad>/solecli/Cargo.toml > <scratchpad>/climesh_sole.csv`
   (rustc 1.98.0). Coordinate e fuso da `tests/motore.rs:17-24` e `casi/bastia/progetto/progetto.toml`
@@ -118,14 +118,14 @@ frase compare nelle versioni 8.x della stessa documentazione.
   all'istante `etichetta − 30 min`.
 - Scratchpad: `/private/tmp/claude-501/-Users-mario-GitHub/89c63284-d20f-45d5-ace4-5f46359bb090/scratchpad`.
 
-Per ogni passo k (sole di CLIMESH alle k:00, record EPW k+1, sole di monte alle k:30) tre differenze, in
-gradi, CLIMESH meno monte. **TOT** è lo scarto che vedrebbe il porto. **TEMPO** è
+Per ogni passo k (sole di OMBRA alle k:00, record EPW k+1, sole di monte alle k:30) tre differenze, in
+gradi, OMBRA meno monte. **TOT** è lo scarto che vedrebbe il porto. **TEMPO** è
 `posizione(k) − posizione(k+0,5)`, solo l'istante. **ALGO** è `posizione(k+0,5) − SPA(k+0,5)`, solo
 l'algoritmo (Spencer contro SPA con rifrazione).
 
 **21 giugno 2021**
 
-| k | CLIMESH alt / az | monte alt / az | TOT Δalt / Δaz | TEMPO Δalt / Δaz | ALGO Δalt / Δaz |
+| k | OMBRA alt / az | monte alt / az | TOT Δalt / Δaz | TEMPO Δalt / Δaz | ALGO Δalt / Δaz |
 |---|---|---|---|---|---|
 | 6 | 13,86 / 70,70 | 19,04 / 75,28 | −5,19 / −4,58 | −5,24 / −4,65 | 0,05 / 0,07 |
 | 8 | 35,34 / 89,72 | 40,73 / 94,94 | −5,39 / −5,22 | −5,47 / −5,30 | 0,08 / 0,08 |
@@ -141,7 +141,7 @@ l'algoritmo (Spencer contro SPA con rifrazione).
 
 **21 dicembre 2021**
 
-| k | CLIMESH alt / az | monte alt / az | TOT Δalt / Δaz | TEMPO Δalt / Δaz | ALGO Δalt / Δaz |
+| k | OMBRA alt / az | monte alt / az | TOT Δalt / Δaz | TEMPO Δalt / Δaz | ALGO Δalt / Δaz |
 |---|---|---|---|---|---|
 | 8 | 2,55 / 125,89 | 6,90 / 131,26 | −4,35 / −5,36 | −4,28 / −5,40 | −0,07 / 0,04 |
 | 10 | 17,32 / 149,48 | 19,83 / 156,18 | −2,50 / −6,70 | −2,50 / −6,76 | −0,00 / 0,06 |
@@ -161,7 +161,7 @@ Tabelle ridotte; l'output completo, ore 6-20 a passo 1 h, si rigenera con i due 
   0,35° in azimut e 0,47° in altezza, il massimo vicino all'orizzonte, dove la rifrazione dell'SPA
   (`physics/sun_position.py:1002-1040`, sempre applicata) conta e Spencer non ce l'ha. È coerente con il
   tetto dichiarato in `src/sole.rs:10-15` (0,10° in altezza e 0,29° in azimut contro Meeus).
-- Il segno è sistematico: CLIMESH ha il sole mezz'ora indietro, più basso al mattino, più alto il
+- Il segno è sistematico: OMBRA ha il sole mezz'ora indietro, più basso al mattino, più alto il
   pomeriggio, con l'azimut sempre minore, tra 4,6° e 20°.
 - In queste ore e in questi due giorni nessun passo cambia da giorno a notte fra le due convenzioni. Il più
   vicino è il 21/12, k = 16: 4,76° contro 0,79°. `[M]`

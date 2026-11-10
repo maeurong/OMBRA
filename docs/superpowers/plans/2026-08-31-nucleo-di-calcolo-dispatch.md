@@ -2,7 +2,7 @@
 
 Compagno di [`2026-08-31-nucleo-di-calcolo.md`](2026-08-31-nucleo-di-calcolo.md). Il piano dice **cosa** si costruisce; questo documento dice **chi** lo costruisce, **in che ordine**, **con quali skill obbligatorie**, **chi rivede** e **cosa si guarda per accorgersi in tempo che sta andando storto**. Non modifica nessuno step del piano.
 
-Provenienza: scritto da `/mnt/c/Users/mario/GitHub/CLIMESH`, branch `main`, HEAD `f377c44`, con il piano, `docs/spec.md`, `CLAUDE.md`, `CONTEXT.md`, `docs/adr/0001-oggetti-e-raster.md`, `.github/workflows/ci.yml`, `src/lib.rs`, `src/inx.rs`, `src/bin/extract_inx.rs`, `Cargo.toml` e `casi/bastia/valori-di-riferimento.toml` letti per intero in sessione. Esecuzione prevista con `superpowers:subagent-driven-development`: un implementatore fresco per task, revisione dopo ogni task, revisione ampia alla fine.
+Provenienza: scritto da `/mnt/c/Users/mario/GitHub/OMBRA`, branch `main`, HEAD `f377c44`, con il piano, `docs/spec.md`, `CLAUDE.md`, `CONTEXT.md`, `docs/adr/0001-oggetti-e-raster.md`, `.github/workflows/ci.yml`, `src/lib.rs`, `src/inx.rs`, `src/bin/extract_inx.rs`, `Cargo.toml` e `casi/bastia/valori-di-riferimento.toml` letti per intero in sessione. Esecuzione prevista con `superpowers:subagent-driven-development`: un implementatore fresco per task, revisione dopo ogni task, revisione ampia alla fine.
 
 ---
 
@@ -54,7 +54,7 @@ graph TD
 **Cosa può girare in parallelo, e a quali condizioni.**
 
 - `researcher` e Task 1 sì, senza attriti: il researcher è in sola lettura e non tocca un file del repository. Va lanciato **per primo**, in contemporanea al dispatch di Task 1.
-- Task 4a e Task 1/2/3 sì: Task 4a lavora in un clone di `UMEP-dev/solweig` fuori da questo repository e non scrive un solo file di CLIMESH. Unico punto di contatto è il tag prodotto, che serve solo a Task 4b.
+- Task 4a e Task 1/2/3 sì: Task 4a lavora in un clone di `UMEP-dev/solweig` fuori da questo repository e non scrive un solo file di OMBRA. Unico punto di contatto è il tag prodotto, che serve solo a Task 4b.
 - **Tutto il resto è sequenziale, e non per prudenza.** Tutti e cinque i task modificano `src/lib.rs`; quattro modificano `Cargo.toml` e `Cargo.lock`. Due implementatori in parallelo si pestano i piedi sul manifesto delle dipendenze e sull'elenco dei moduli, che sono le due righe più contese del progetto. Vale comunque la regola di `subagent-driven-development`: mai due implementatori insieme.
 - Dipendenza **non dichiarata dal piano**: Task 3 pinna `ndarray = "0.16"`, ma il tipo che Task 4b passa al Motore è `dsm.view()`, cioè una `ArrayView2` della *nostra* versione di ndarray. Se il Motore è compilato contro una minor diversa, i due tipi non sono lo stesso tipo e il collegamento non compila. La versione di ndarray del Motore va quindi conosciuta **prima di Task 3**, non a Task 4. È il primo motivo per cui il researcher parte per primo.
 - Dipendenza **implicita** che il piano nomina di sfuggita: il cancello di Task 5 legge `casi/bastia/progetto`, che nasce nello step 6 di Task 2. Se quello step viene tagliato o sbagliato, il fallimento si manifesta quattro task dopo.
@@ -191,7 +191,7 @@ Deve citare `file:riga` o URL per ognuna, e marcare esplicitamente ciò che non 
 
 **Skill-gate: false.** Motivo dichiarato: il task è meccanico — due edit di configurazione e una sequenza di comandi `gh` già scritti nel piano — e `coder` non possiede il tool `Skill`, quindi il gate non sarebbe imponibile comunque. È il solo `false` del piano.
 
-**Sequenza:** in parallelo a Task 1·2·3, subito dopo il dossier del researcher. Non tocca un solo file di CLIMESH, quindi non collide con niente. Va lanciato presto: una PR a monte ha latenza che non dipende da noi, e il tag serve a Task 4b.
+**Sequenza:** in parallelo a Task 1·2·3, subito dopo il dossier del researcher. Non tocca un solo file di OMBRA, quindi non collide con niente. Va lanciato presto: una PR a monte ha latenza che non dipende da noi, e il tag serve a Task 4b.
 
 **Chi rivede, e su cosa.**
 - `security-reviewer`: sì, ed è **l'unico punto del piano dove un audit di sicurezza non è teatro**. Entra una dipendenza git che punta a un fork personale, pinnata a un tag che chi controlla il fork può spostare; e va confermata la compatibilità di licenza fra GPL-3 del Motore e `GPL-3.0-or-later` dichiarata nel nostro `Cargo.toml`. Mandato ristretto: catena di fornitura e licenza, non il codice del Motore, che non è nostro.
@@ -343,4 +343,4 @@ Segnalati, non aggirati. Ordinati per quanto costa scoprirli tardi. I primi quat
 
 ## 9. Segnalazione di roster
 
-Nessun ruolo o skill del roster copre il calcolo scientifico in Rust. `backend-engineer` è l'assegnazione giusta per dominio — data layer, logica, nessuna UI — ma la sua unica skill wired, `senior-backend`, parla di API REST, query SQL, auth e migration: su questo piano il suo gate si soddisfa solo con le skill trasversali (`test-driven-development`, `ponytail`, `caveman`), e va dichiarato come salto motivato cinque volte su cinque. È la prima volta che lo registro su questo repository. Se ricapita — e su CLIMESH ricapiterà a ogni task di calcolo — vale la pena guardarlo con `self-improving-agent` e valutare una skill dedicata; niente si crea senza un ok esplicito.
+Nessun ruolo o skill del roster copre il calcolo scientifico in Rust. `backend-engineer` è l'assegnazione giusta per dominio — data layer, logica, nessuna UI — ma la sua unica skill wired, `senior-backend`, parla di API REST, query SQL, auth e migration: su questo piano il suo gate si soddisfa solo con le skill trasversali (`test-driven-development`, `ponytail`, `caveman`), e va dichiarato come salto motivato cinque volte su cinque. È la prima volta che lo registro su questo repository. Se ricapita — e su OMBRA ricapiterà a ogni task di calcolo — vale la pena guardarlo con `self-improving-agent` e valutare una skill dedicata; niente si crea senza un ok esplicito.

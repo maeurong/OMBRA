@@ -1,6 +1,6 @@
 # Il formato `.INX` di ENVI-met, per quanto serve a leggerlo
 
-CLIMESH legge i file `.INX` prodotti da ENVI-met, e non li scrive: rientrare in ENVI-met non è
+OMBRA legge i file `.INX` prodotti da ENVI-met, e non li scrive: rientrare in ENVI-met non è
 un caso d'uso. Del formato non esiste documentazione pubblica. Quello che segue è ricavato
 leggendo un solo file reale, `LAB1.INX` del caso di riferimento — 210 042 byte, 5405 righe,
 scritto il 15/03/2023 da SPACES 5.1.1, versione di formato 440 — più il codice del lettore che
@@ -20,7 +20,7 @@ le sezioni una dopo l'altra.
 - **Verificato**: i valori scalari sono scritti con uno spazio attorno, `<grids-I> 50 </grids-I>`,
   e le righe delle matrici sono rientrate. Ogni lettura va ripulita degli spazi.
 
-La conseguenza pratica per CLIMESH: il lettore non costruisce un albero e non valida la sintassi.
+La conseguenza pratica per OMBRA: il lettore non costruisce un albero e non valida la sintassi.
 Cerca i tag per nome sul testo intero, perché ogni tag che serve compare una volta sola nel file
 (le eccezioni sono i campi interni ai blocchi `<3Dplants>`, che si cercano dentro il blocco). Un
 lettore ad albero avrebbe richiesto un parser tollerante, e in cambio non avrebbe dato niente:
@@ -43,13 +43,13 @@ la gerarchia del file non porta informazione che i nomi dei tag non portino già
 - **Verificato**: nell'intestazione, e solo lì, il contenuto dei tag è scritto senza spazi attorno.
 - **Inferito**: `encryptionlevel` diverso da zero indica un file cifrato o offuscato, il cui
   contenuto non sarebbe leggibile come testo. Non ho un file simile per verificarlo. Il lettore
-  di CLIMESH rifiuta con un errore esplicito qualunque valore diverso da `0`, perché l'alternativa
+  di OMBRA rifiuta con un errore esplicito qualunque valore diverso da `0`, perché l'alternativa
   — proseguire e leggere byte cifrati come se fossero numeri — è peggiore di fermarsi.
 - **Inferito**: `checksum` a zero significa "nessuna somma di controllo calcolata". Il lettore lo
   ignora.
 - **Inferito**: `version` è la versione del formato, non del programma che l'ha scritto; il nome
   del programma sta in `remark`. Un lettore che ignorasse questo numero leggerebbe in silenzio un
-  file di una versione futura, quindi CLIMESH lo riporta al chiamante anche se oggi non lo usa.
+  file di una versione futura, quindi OMBRA lo riporta al chiamante anche se oggi non lo usa.
 
 ## Le sezioni
 
@@ -72,7 +72,7 @@ Nell'ordine in cui compaiono in `LAB1.INX` (**verificato**):
 Gli elementi `<3Dplants>` sono fratelli fra loro e figli diretti della radice: **non** stanno
 dentro un contenitore che li raccolga. Sono interposti fra `<simpleplants2D>` e `<soils2D>`.
 
-La geometria e la posizione sono le uniche parti che CLIMESH considera obbligatorie:
+La geometria e la posizione sono le uniche parti che OMBRA considera obbligatorie:
 
 ```
 <modelGeometry>          <locationData>
@@ -109,11 +109,11 @@ Sono sette, tutti con la stessa forma:
 - **Verificato**: le celle possono essere **vuote**. In `ID_plants1D` sono 898 su 2500, e in
   `ID_sources` lo sono tutte e 2500: la riga è `,,,,` ripetuto. Una cella vuota vuol dire "qui non
   c'è niente", che non è lo stesso di zero e non è lo stesso di una sezione assente. Il lettore di
-  CLIMESH tiene distinte le tre cose.
+  OMBRA tiene distinte le tre cose.
 - **Inferito**: `dataI` è il numero di valori per riga e `dataJ` il numero di righe. Nel caso di
   riferimento la griglia è quadrata, 50 × 50, quindi il file non permette di distinguerlo; è una
   deduzione dai nomi e dalla corrispondenza con `grids-I` e `grids-J`. Un `.INX` non quadrato
-  chiuderebbe la questione, e il lettore di CLIMESH è scritto per accorgersene: se il conto delle
+  chiuderebbe la questione, e il lettore di OMBRA è scritto per accorgersene: se il conto delle
   righe o dei valori non torna, si ferma dicendo cosa aspettava e cosa ha trovato.
 
 ### L'orientamento delle righe, che è la parte che si sbaglia
@@ -160,12 +160,12 @@ restituisce le righe nell'ordine del file, per chi deve riscriverle o confrontar
 - **Verificato**: gli identificativi sono stringhe di sei caratteri alfanumerici, non numeri.
   `0100XX` perde il significato se lo si legge come intero. Il lettore li tiene come testo.
 - **Inferito**: `fixedheight` distingue gli edifici la cui altezza è fissata da quelli che seguono
-  il terreno. Vale zero ovunque nel caso, quindi non è verificabile, e CLIMESH non lo legge.
+  il terreno. Vale zero ovunque nel caso, quindi non è verificabile, e OMBRA non lo legge.
 - **Verificato**, e vale come avvertenza: `buildingNr` **non** identifica un edificio per come lo
   intenderebbe un architetto. Nel caso di riferimento i tre blocchi costruiti sono spezzati in
   sette numeri — il blocco a 6 m di destra porta i numeri 5 e 6, quello a 3 m i numeri 7, 8, 9 e
   10 — con i numeri accessori che coprono una riga o una singola cella al bordo. Chi ne ricava gli
-  Edifici di CLIMESH deve raggruppare per contiguità, non per numero.
+  Edifici di OMBRA deve raggruppare per contiguità, non per numero.
 
 ## Le istanze di vegetazione
 
@@ -188,7 +188,7 @@ restituisce le righe nell'ordine del file, per chi deve riscriverle o confrontar
   `k` fra 0 e `grids-Z` − 1 e rifiuta il resto nominando il valore e il limite.
 - **Inferito**: `plantID` è la chiave di una voce nella banca dati delle piante di ENVI-met, che
   sta fuori dal file. Senza quella banca dati, altezza, chioma e trasmissività fogliare della
-  specie non sono ricavabili dal `.INX`. Per CLIMESH è la parte di Provenienza che il formato non
+  specie non sono ricavabili dal `.INX`. Per OMBRA è la parte di Provenienza che il formato non
   porta con sé.
 - **Inferito**: `observe` a 1 marca l'istanza come osservata nei risultati. Vale 0 in tutte le 616.
 - **Verificato**: `name` è il nome di catalogo della specie, con un punto iniziale e spazi attorno.

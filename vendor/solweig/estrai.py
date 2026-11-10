@@ -45,7 +45,7 @@ import re
 import sys
 from pathlib import Path
 
-# I file di monte che CLIMESH riusa, e nient'altro.
+# I file di monte che OMBRA riusa, e nient'altro.
 FILE = ["shadowing.rs", "utci.rs", "skyview.rs"]
 
 # Elementi che a monte sono privati o `pub(crate)` e che devono diventare
@@ -75,7 +75,7 @@ DA_ESPORRE = {
 #
 # Perche' non riscriverli da noi: il corpo di `utci_single` e' la conversione
 # documentata da umidita' relativa a pressione di vapore piu' la chiamata al
-# polinomio. Copiarlo in CLIMESH significherebbe tenere fisica vendorata fuori
+# polinomio. Copiarlo in OMBRA significherebbe tenere fisica vendorata fuori
 # da `vendor/`, dove nessuno la riconoscerebbe come tale al prossimo
 # aggiornamento.
 DA_TENERE = {

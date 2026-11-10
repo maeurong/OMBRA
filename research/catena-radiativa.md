@@ -5,7 +5,7 @@ Ricognizione in sola lettura, prima di estendere `vendor/solweig/estrai.py` al p
 `compute_timestep`, come prevede il ripiego di [ADR 0003](../docs/adr/0003-catena-radiativa-e-cucitura-a-monte.md).
 
 **Data ricerca**: 2026-10-29.
-**Repo CLIMESH**: HEAD `1f1852f` (2026-09-08), 244 test di cui 3 ignorati, vendor-check identico.
+**Repo OMBRA**: HEAD `1f1852f` (2026-09-08), 244 test di cui 3 ignorati, vendor-check identico.
 **Motore letto**: `UMEP-dev/solweig` al commit pinnato `02246ab71a3a8b127d740dde9640449ee9d558ff`.
 I numeri di riga di `rust/src/` e `pysrc/solweig/` si riferiscono a quel commit.
 
@@ -179,7 +179,7 @@ confrontare byte per byte.
 
 **Lo schema di suolo 2026a** (`ground_scheme`, i campi `sch_*`) resta nella struct come `None`.
 Toglierlo vorrebbe dire riscrivere i rami della chiusura che lo leggono, ed è proprio la
-modifica che questa forma evita. CLIMESH lo lascia spento: il ramo classico è quello che a monte
+modifica che questa forma evita. OMBRA lo lascia spento: il ramo classico è quello che a monte
 chiamano «byte-identical baseline».
 
 ---
@@ -205,9 +205,9 @@ un raster costante riproduca a monte byte per byte.
 
 `compute_timestep` riceve scalari e raster già preparati. Li prepara `calculate_core_fused` in
 `pysrc/solweig/computation.py:67-705`, più le funzioni che chiama. Elenco di ciò che **calcola**
-(non di ciò che sposta in memoria), con quello che CLIMESH ha già.
+(non di ciò che sposta in memoria), con quello che OMBRA ha già.
 
-| Grandezza | Dove a monte | CLIMESH oggi | Nota |
+| Grandezza | Dove a monte | OMBRA oggi | Nota |
 |---|---|---|---|
 | posizione del sole, `sun_zenith` | `models/weather.py:121-…`, SPA in `physics/sun_position.py` | `src/sole.rs` | a monte il sole è calcolato a **metà passo** (`datetime - timestep/2`, `weather.py:150-151`); da confrontare con la nostra convenzione |
 | `altmax` | `weather.py`, massimo su passi da 15 min | — | da portare |
@@ -244,7 +244,7 @@ formule dei paper citati nei file.
 ## 6. Il cielo anisotropo con più Strati di chioma
 
 `compute_timestep` prende **una** `vegshmat`, **una** `vbshmat` e **un** insieme di `svf_veg*`
-direzionali. CLIMESH fa una passata di `calculate_svf_inner` per Strato di chioma (`src/motore.rs:184-259`),
+direzionali. OMBRA fa una passata di `calculate_svf_inner` per Strato di chioma (`src/motore.rs:184-259`),
 e d'inverno gli Strati sono due. Serve una regola per comporli in un ingresso solo. È la parte
 concreta dell'approssimazione che ADR 0004 dichiara («una cella che vede un sempreverde in una
 patch e una chioma spoglia in un'altra riceve una sola trasmissività verso il cielo»).
@@ -289,7 +289,7 @@ Il porto le cita per riga e per commit, così chi aggiorna il pin vede quando ca
   un raster.
 - Il nome `svf_aveg` ↔ `svf_veg_blocks_bldg_sh` (§5).
 - Se il `direct_rad` di monte sia normale o orizzontale (§5): decide la conversione dall'EPW.
-- Il comportamento notturno della chiusura (`pipeline.rs:1149`) quando CLIMESH chiama anche le
+- Il comportamento notturno della chiusura (`pipeline.rs:1149`) quando OMBRA chiama anche le
   ore senza sole: a monte `calculate_core_fused` è chiamata per ogni passo, e la chiusura ha un
   ramo che restituisce prima.
 - L'effetto della trappola di T5: dedotto dalla regola, non provato.

@@ -2,12 +2,12 @@
 //! inputs first: every coverage rule below is the one written in
 //! `src/derivazione.rs`, and each test fails if that rule is dropped.
 
-use climesh::derivazione::{
+use ombra::derivazione::{
     deriva, Raster, RasterDiScenario, Stagione, StratoDiChioma, CLASSE_ACQUA, CLASSE_ERBA,
     CLASSE_NESSUNA, CLASSE_PAVIMENTATO, CLASSE_TERRENO_NUDO, TRASMISSIVITA_CON_FOGLIE,
     TRASMISSIVITA_SENZA_FOGLIE,
 };
-use climesh::dominio::*;
+use ombra::dominio::*;
 use std::path::PathBuf;
 
 fn griglia(nx: usize, ny: usize) -> Griglia {
@@ -95,7 +95,7 @@ fn albero(specie: &str, posizione_m: Posizione, altezza_m: f32, frazione_tronco:
 
 /// Cells that carry a canopy, that is the ones the `f32::NAN` of an empty cell
 /// has not been left in.
-fn con_chioma(r: &climesh::derivazione::Raster) -> usize {
+fn con_chioma(r: &ombra::derivazione::Raster) -> usize {
     r.iter().filter(|v| !v.is_nan()).count()
 }
 
@@ -640,7 +640,7 @@ fn la_stagione_si_decide_dalla_finestra_con_foglie_della_derivazione() {
 
 #[test]
 fn il_caso_di_riferimento_deriva_in_entrambe_le_stagioni() {
-    let progetto = climesh::progetto::leggi("casi/bastia/progetto").unwrap();
+    let progetto = ombra::progetto::leggi("casi/bastia/progetto").unwrap();
     let estivo: Vec<RasterDiScenario> = progetto
         .scenari
         .iter()

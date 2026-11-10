@@ -1,7 +1,7 @@
-# Geometria urbana in Italia per CLIMESH — da dove arriva, e quanto vale sul caso Bastia Umbra
+# Geometria urbana in Italia per OMBRA — da dove arriva, e quanto vale sul caso Bastia Umbra
 
-**Scopo**: rispondere al ticket [#5](https://github.com/maeurong/CLIMESH/issues/5) — da dove arriva la geometria urbana necessaria a CLIMESH in Italia, e quanto è buona sul caso di riferimento.
-**Data ricerca**: 2026-08-31. **Repo**: CLIMESH, branch `main`, HEAD `7f23d421a2f26df31d374cd141c1137d3d8496d5`.
+**Scopo**: rispondere al ticket [#5](https://github.com/maeurong/OMBRA/issues/5) — da dove arriva la geometria urbana necessaria a OMBRA in Italia, e quanto è buona sul caso di riferimento.
+**Data ricerca**: 2026-08-31. **Repo**: OMBRA, branch `main`, HEAD `7f23d421a2f26df31d374cd141c1137d3d8496d5`.
 **Metodo**: verifica diretta via Overpass API sull'area del sito, più fonti primarie (OSM wiki, taginfo, documentazione UMEP, geoportali).
 
 **Convenzione di marcatura** (stessa di `research/envi-met.md`):
@@ -76,9 +76,9 @@ Il tutorial ufficiale del **DSM Generator** di UMEP (lo strumento che, dentro QG
 
 > "the result is not very good since only **8 out of 47 polygons** included useful height information [...] Usually height information in the OSM dataset is not very common but for some larger cities the information can be very close to full coverage."
 
-Il rimedio che il tutorial stesso insegna è **assegnare un'altezza uniforme a mano** con la Field Calculator di QGIS per tutti gli edifici privi del dato — cioè un intervento manuale sistematico dopo l'import, non un'estensione dell'automazione. Nota rilevante anche per CLIMESH: lo stesso tutorial avverte che questa tecnica **assume tutti i tetti piani** ("roof structures are not included [...] all roofs are assumed flat"); per tetti inclinati serve LiDAR.
+Il rimedio che il tutorial stesso insegna è **assegnare un'altezza uniforme a mano** con la Field Calculator di QGIS per tutti gli edifici privi del dato — cioè un intervento manuale sistematico dopo l'import, non un'estensione dell'automazione. Nota rilevante anche per OMBRA: lo stesso tutorial avverte che questa tecnica **assume tutti i tetti piani** ("roof structures are not included [...] all roofs are assumed flat"); per tetti inclinati serve LiDAR.
 
-Questo conferma da fonte primaria indipendente (il progetto GPL-3.0 più vicino concettualmente a CLIMESH, non un blog) che il problema visto a Bastia Umbra non è un caso limite italiano ma **il comportamento normale di OSM per l'altezza degli edifici**, con forte variabilità: alcune grandi città sono vicine alla copertura piena, il resto no.
+Questo conferma da fonte primaria indipendente (il progetto GPL-3.0 più vicino concettualmente a OMBRA, non un blog) che il problema visto a Bastia Umbra non è un caso limite italiano ma **il comportamento normale di OSM per l'altezza degli edifici**, con forte variabilità: alcune grandi città sono vicine alla copertura piena, il resto no.
 
 ## 4. DEM/DSM pubblici per l'Italia
 
@@ -104,7 +104,7 @@ SOLWEIG/UMEP non prende l'altezza degli alberi da OSM. Richiede due raster dedic
 
 Questi raster si producono normalmente da **classificazione di nuvole di punti LiDAR** (vedi tutorial dedicato "Generating UMEP input data from a LiDAR point cloud"), non da OSM. Per chi non ha LiDAR, UMEP offre un **"Tree Generator"**: un plugin che genera vegetazione sintetica **da un file vettoriale a punti inserito a mano** dall'utente, con attributi `id, ttype, trunk, totheight, diameter` — cioè uno strumento di inserimento manuale assistito, non un estrattore automatico da dati aperti.
 
-`[I]` Conclusione per CLIMESH: OSM offre alberi puntuali (`natural=tree`) e aree verdi (`landuse=forest`, `leisure=park` ecc.), ma quasi mai altezza o diametro chioma nei tag; nessuno strumento esistente, UMEP compreso, ha risolto questo con l'automazione — tutti finiscono su LiDAR o inserimento manuale. Non ho verificato la copertura specifica del tag `natural=tree` a Bastia Umbra (non l'ho interrogata separatamente), ma dato il pattern generale è ragionevole aspettarsi copertura scarsa o nulla anche lì.
+`[I]` Conclusione per OMBRA: OSM offre alberi puntuali (`natural=tree`) e aree verdi (`landuse=forest`, `leisure=park` ecc.), ma quasi mai altezza o diametro chioma nei tag; nessuno strumento esistente, UMEP compreso, ha risolto questo con l'automazione — tutti finiscono su LiDAR o inserimento manuale. Non ho verificato la copertura specifica del tag `natural=tree` a Bastia Umbra (non l'ho interrogata separatamente), ma dato il pattern generale è ragionevole aspettarsi copertura scarsa o nulla anche lì.
 
 ## 6. Formati e API — cosa si presta a un binario Rust senza dipendenze pesanti
 

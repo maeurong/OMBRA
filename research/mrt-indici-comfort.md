@@ -1,8 +1,8 @@
 # MRT e indici di comfort termico — formulazioni, implementazioni aperte, sensibilità
 
-**Scopo**: istruire la scelta di CLIMESH su (a) quale formulazione di temperatura media radiante calcolare, (b) quale indice di comfort produrre, (c) quali implementazioni aperte riusare, (d) se il vento semplificato sia accettabile. Risponde al ticket [#3](https://github.com/maeurong/CLIMESH/issues/3).
+**Scopo**: istruire la scelta di OMBRA su (a) quale formulazione di temperatura media radiante calcolare, (b) quale indice di comfort produrre, (c) quali implementazioni aperte riusare, (d) se il vento semplificato sia accettabile. Risponde al ticket [#3](https://github.com/maeurong/OMBRA/issues/3).
 
-**Data ricerca**: 2026-08-31. **Repo**: `/mnt/c/Users/mario/GitHub/CLIMESH`, branch `main`, HEAD `7f23d42` (working tree: solo `README.md` tracciato; `research/` e `materiale università/` non tracciati).
+**Data ricerca**: 2026-08-31. **Repo**: `/mnt/c/Users/mario/GitHub/OMBRA`, branch `main`, HEAD `7f23d42` (working tree: solo `README.md` tracciato; `research/` e `materiale università/` non tracciati).
 
 **Convenzione di marcatura**
 - `[P]` = confermato da fonte primaria (norma, paper originale, sito o codice sorgente del progetto).
@@ -18,7 +18,7 @@
 
 1. **MRT**: la formulazione da adottare è quella **a sei direzioni con fattori di proiezione angolare**, nella variante modellistica di **SOLWEIG** (Lindberg, Holmer & Thorsson 2008). È il metodo che ISO 7726 definisce per la misura, che SOLWEIG implementa a partire da geometria e radiazione, e che rende commensurabili modello e misura. Gli altri metodi (globo termometro, formulazione NWP di Di Napoli) sono per misura di campo e per scala globale, non per una griglia urbana a 1 m.
 2. **Indice**: **UTCI come indice primario**, **PET come secondario**. UTCI ha un'unica implementazione autoritativa (polinomio di Bröde, sorgente Fortran pubblicato) e quindi è riproducibile bit-a-bit fra strumenti; PET no — esistono almeno quattro varianti mutuamente incompatibili. PMV va escluso come indice principale.
-3. **Implementazioni**: esistono e sono citabili. Per CLIMESH la più rilevante è **`UMEP-dev/solweig`**, riscrittura Rust ufficiale di SOLWEIG con Tmrt, UTCI e PET, GPL-3.0 — stessa licenza e stesso linguaggio del progetto.
+3. **Implementazioni**: esistono e sono citabili. Per OMBRA la più rilevante è **`UMEP-dev/solweig`**, riscrittura Rust ufficiale di SOLWEIG con Tmrt, UTCI e PET, GPL-3.0 — stessa licenza e stesso linguaggio del progetto.
 4. **Vento**: il vento semplificato è **accettabile per l'estate, ed è una debolezza reale in inverno**. Misurato sul polinomio ufficiale: d(UTCI)/dv vale circa **−1 K per m/s** in condizioni estive e circa **−3 K per m/s** in condizioni invernali (§4.2). Va dichiarato, non nascosto.
 5. **Segnale sole/ombra**: ΔTmrt di **20–35 K**, contro un RMSE di SOLWEIG contro misure di campo di **2,4–7,3 K**. Rapporto segnale/errore fra 3 e 10. Il segnale è largamente sopra la barra d'errore — al contrario della differenza di 0,21 °C sulla temperatura dell'aria che la relazione del caso studio dichiara.
 
@@ -66,7 +66,7 @@ I valori 0,06 / 0,22 sono quelli di ISO 7726 per persona in piedi con orientamen
 | `abs_k` (α_k) | 0,70 | assorbimento onda corta, corpo vestito grigio medio |
 | `abs_l` (α_l = ε_p) | 0,97 | assorbimento/emissività onda lunga |
 
-> **Attenzione — incoerenza fra implementazioni.** La documentazione nuova di SOLWEIG dà `abs_l = 0,97` `[P]`, ma il file di parametri di default del plugin QGIS UMEP dà `absL = 0,95` `[P]` — https://github.com/UMEP-dev/UMEP-processing/blob/main/processor/parametersforsolweig.json (`Tmrt_params.Value.absL`). `[I]` La differenza è piccola sul risultato (Tmrt ∝ (1/α_l)^0.25, cioè ~0,5 % in kelvin assoluti, ≈ 0,4 K a 40 °C) ma è il tipo di divergenza silenziosa che CLIMESH deve fissare esplicitamente in configurazione e registrare nel giornale della corsa.
+> **Attenzione — incoerenza fra implementazioni.** La documentazione nuova di SOLWEIG dà `abs_l = 0,97` `[P]`, ma il file di parametri di default del plugin QGIS UMEP dà `absL = 0,95` `[P]` — https://github.com/UMEP-dev/UMEP-processing/blob/main/processor/parametersforsolweig.json (`Tmrt_params.Value.absL`). `[I]` La differenza è piccola sul risultato (Tmrt ∝ (1/α_l)^0.25, cioè ~0,5 % in kelvin assoluti, ≈ 0,4 K a 40 °C) ma è il tipo di divergenza silenziosa che OMBRA deve fissare esplicitamente in configurazione e registrare nel giornale della corsa.
 
 ### 1.3 Globo termometro (metodo di misura, non di modello)
 
@@ -78,7 +78,7 @@ T_mrt = [ (T_g + 273,15)^4 + (1,1·10^8 · v_a^0.6) / (ε · D^0.4) · (T_g − 
 
 con `T_g` temperatura di globo, `D` diametro del globo, `ε` emissività. `[S]` — resa esplicita, con questa notazione, in Sci Rep 2025 eq. 1: https://www.nature.com/articles/s41598-025-33440-6
 
-Rilevante per CLIMESH solo come metodo di validazione futura contro misure di campo. Nota: dipende da `v_a`, quindi anche la *misura* di riferimento della MRT eredita l'errore sul vento.
+Rilevante per OMBRA solo come metodo di validazione futura contro misure di campo. Nota: dipende da `v_a`, quindi anche la *misura* di riferimento della MRT eredita l'errore sul vento.
 
 ### 1.4 SOLWEIG — la formulazione operativa da imitare
 
@@ -112,11 +112,11 @@ Output: griglie di Tmrt, K↓, K↑, L↓, L↑ e ombra, più serie complete ai 
 
 > **Nota di attualità**: la versione 2026a introdurrà uno schema di temperatura del suolo Force/Restore, fisicamente più fondato del precedente schema lineare, e capace di stimare Ts anche di notte — cosa che lo schema attuale non fa. `[P]` — manuale UMEP §12.2.2.3. Chi copia lo schema attuale copia un modello che i suoi autori stanno sostituendo.
 
-### 1.5 Formulazione NWP (Di Napoli et al. 2020) — fuori scala per CLIMESH
+### 1.5 Formulazione NWP (Di Napoli et al. 2020) — fuori scala per OMBRA
 
 Deriva la MRT dai flussi radiativi di un modello meteorologico globale (ECMWF): `ssrd`, `ssr`, `dsrp`, `strd`, `fdir`, `strr`, più il coseno dell'angolo zenitale. Implementata in `thermofeel` di ECMWF. `[P]` — https://github.com/ecmwf/thermofeel/blob/main/thermofeel/thermofeel.py:235-265
 
-Nessuna geometria urbana: nessuna ombra da edificio, nessun view factor locale. Serve a mappe continentali, non a una piazza. `[I]` Per CLIMESH è utile solo come formulazione di confronto e come sorgente di forcing su larga scala.
+Nessuna geometria urbana: nessuna ombra da edificio, nessun view factor locale. Serve a mappe continentali, non a una piazza. `[I]` Per OMBRA è utile solo come formulazione di confronto e come sorgente di forcing su larga scala.
 
 ### 1.6 ENVI-met (AVF / IVS)
 
@@ -124,7 +124,7 @@ Trattata nel report `research/envi-met.md` §2.4. In sintesi: ray tracing 3D una
 
 ### 1.7 Confronto pratico
 
-| Metodo | Input | Risoluzione spaziale | Costo | Ruolo per CLIMESH |
+| Metodo | Input | Risoluzione spaziale | Costo | Ruolo per OMBRA |
 |---|---|---|---|---|
 | Sei direzioni misurato (ISO 7726) | 6 K + 6 L da radiometri | punto | strumentazione | validazione futura |
 | Globo termometro | T_g, T_a, v_a, D, ε | punto | strumento singolo, economico | validazione futura; dipende da v_a |
@@ -153,7 +153,7 @@ PMV = [0,028 + 0,303 · exp(−0,036 · M/A_Du)] · (H/A_Du − E_d − E_sw −
 - outdoor il PMV **esce regolarmente dall'intervallo [−4, +4]**, cioè fuori dai dati sperimentali di Fanger;
 - nel modello PMV la temperatura del vestiario è **l'unico** parametro che reagisce alle condizioni ambientali: la temperatura cutanea dipende solo dall'attività.
 
-`[I]` Conclusione: PMV è utile solo come output di compatibilità con chi lo pretende. Non è l'indice su cui costruire CLIMESH.
+`[I]` Conclusione: PMV è utile solo come output di compatibilità con chi lo pretende. Non è l'indice su cui costruire OMBRA.
 
 ### 2.2 PET (Physiological Equivalent Temperature)
 
@@ -176,7 +176,7 @@ tdb = tr, v = 0,1 m/s, pressione di vapore = 12 hPa, clo = 0,9, met = 1,37 met +
 - Con la release Winter 22/23 ENVI-met ha introdotto **PET\*** ("PET Reviewed"), che differisce **sia** dal PET originale **sia** dal PET già corretto delle versioni precedenti. `[P]`
 - `pythermalcomfort` non implementa il PET originale ma **il modello Walther & Goestchel 2018**. `[P]` — docstring citata sopra, righe 41-45.
 
-`[I]` Conseguenza operativa per CLIMESH: due valori di PET provenienti da strumenti diversi non sono confrontabili senza dichiarare quale variante è stata usata. Se CLIMESH produce PET, deve dichiarare la variante nel giornale della corsa, e il confronto con ENVI-met su PET è strutturalmente ambiguo.
+`[I]` Conseguenza operativa per OMBRA: due valori di PET provenienti da strumenti diversi non sono confrontabili senza dichiarare quale variante è stata usata. Se OMBRA produce PET, deve dichiarare la variante nel giornale della corsa, e il confronto con ENVI-met su PET è strutturalmente ambiguo.
 
 ### 2.3 UTCI (Universal Thermal Climate Index)
 
@@ -229,7 +229,7 @@ Le raccomandazioni disponibili **non concordano**, e questo va detto:
 - **Fröhlich & Matzarakis (2016)**, Theor Appl Climatol 124:179-187, analisi quantitativa di sensibilità in condizioni calde e ventose (Doha). `[S]` — https://doi.org/10.1007/s00704-015-1410-5 — **non letto: paywall Springer, abstract oscurato anche su Semantic Scholar.** Da recuperare se serve un numero pubblicato sulla sensibilità di PET al vento.
 - SOLWEIG/UMEP calcola **entrambi**, PET e UTCI, e non sceglie per l'utente. `[P]` — https://github.com/UMEP-dev/solweig
 
-`[I]` La mia lettura: l'obiezione di ENVI-met a UTCI è corretta **nel contesto di ENVI-met**, dove esiste un campo di vento risolto al livello pedone che va estrapolato a 10 m con un `z0` sconosciuto. In CLIMESH la situazione è rovesciata: il vento arriva dall'EPW, cioè **già a 10 m** (§4.4), e quindi UTCI lo consuma senza alcuna estrapolazione, mentre PET richiederebbe di scendere a 1,1 m — cioè di inventare esattamente il profilo che CLIMESH non risolve. **L'argomento di ENVI-met contro UTCI diventa, in CLIMESH, un argomento a favore.**
+`[I]` La mia lettura: l'obiezione di ENVI-met a UTCI è corretta **nel contesto di ENVI-met**, dove esiste un campo di vento risolto al livello pedone che va estrapolato a 10 m con un `z0` sconosciuto. In OMBRA la situazione è rovesciata: il vento arriva dall'EPW, cioè **già a 10 m** (§4.4), e quindi UTCI lo consuma senza alcuna estrapolazione, mentre PET richiederebbe di scendere a 1,1 m — cioè di inventare esattamente il profilo che OMBRA non risolve. **L'argomento di ENVI-met contro UTCI diventa, in OMBRA, un argomento a favore.**
 
 ### 2.5 Costo computazionale
 
@@ -257,7 +257,7 @@ Testo rilevante, verbatim dal ReadMe `[P]`:
 > USAGE: **This subroutine can be incorporated into your own applications**, the programs provided here may serve as an instructive example.
 > The programs are distributed in the hope that they will be useful, but WITHOUT ANY WARRANTY […]
 
-> **Caveat di licenza `[I]`, importante.** Il ReadMe e l'intestazione del `.f90` contengono la clausola di esclusione di garanzia e la limitazione di responsabilità **testualmente copiate dalla GPL** (fino all'espressione *"ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS THE PROGRAM AS PERMITTED ABOVE"*), ma **non contengono la clausola di concessione della licenza**. Non c'è un file `COPYING`, né una dichiarazione "GPL v2/v3". L'unico permesso esplicito è la frase *"This subroutine can be incorporated into your own applications"*. Questo è probabilmente sufficiente per l'uso, ma **non è una licenza open source formale** e non risolve la compatibilità con GPL-3 in modo pulito. La via priva di rischi per CLIMESH è ripartire da una reimplementazione già licenziata (§3.2), non dal Fortran originale.
+> **Caveat di licenza `[I]`, importante.** Il ReadMe e l'intestazione del `.f90` contengono la clausola di esclusione di garanzia e la limitazione di responsabilità **testualmente copiate dalla GPL** (fino all'espressione *"ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS THE PROGRAM AS PERMITTED ABOVE"*), ma **non contengono la clausola di concessione della licenza**. Non c'è un file `COPYING`, né una dichiarazione "GPL v2/v3". L'unico permesso esplicito è la frase *"This subroutine can be incorporated into your own applications"*. Questo è probabilmente sufficiente per l'uso, ma **non è una licenza open source formale** e non risolve la compatibilità con GPL-3 in modo pulito. La via priva di rischi per OMBRA è ripartire da una reimplementazione già licenziata (§3.2), non dal Fortran originale.
 
 Riferimento accademico da citare in ogni caso: **Bröde, P., Fiala, D., Błażejczyk, K., Holmér, I., Jendritzky, G., Kampmann, B., Tinz, B., Havenith, G. (2012)**, *Deriving the operational procedure for the Universal Thermal Climate Index (UTCI)*, Int. J. Biometeorol. 56:481-494. https://doi.org/10.1007/s00484-011-0454-1
 
@@ -275,11 +275,11 @@ Dati raccolti via GitHub API e crates.io il 2026-08-31 `[P]`:
 | [`NairAssoc/thermalcomfort`](https://github.com/NairAssoc/thermalcomfort) (crates.io `thermalcomfort` 3.9.8) | **Rust** `no_std` | **MIT** | 0 | 2026-08-07 | port 1:1 di pythermalcomfort v3.9.8: PET, UTCI, PMV, SET, PHS |
 | [`nvnsudharsan/SOLWEIG-GPU`](https://github.com/nvnsudharsan/SOLWEIG-GPU) | Python | GPL-3.0 | 27 | 2026-08-18 | SOLWEIG accelerato GPU |
 
-**Compatibilità di licenza con la scelta GPL-3/AGPL-3 di CLIMESH** `[I]`: MIT e Apache-2.0 sono compatibili in ingresso verso GPL-3 (Apache-2.0 è compatibile con GPL-3, non con GPL-2). GPL-3.0 è compatibile con GPL-3. AGPL-3.0 in ingresso forzerebbe CLIMESH ad AGPL-3, cosa che la mappa già ammette come opzione. Nessuna delle opzioni è bloccante; `ladybug-comfort` è l'unica che vincola la scelta.
+**Compatibilità di licenza con la scelta GPL-3/AGPL-3 di OMBRA** `[I]`: MIT e Apache-2.0 sono compatibili in ingresso verso GPL-3 (Apache-2.0 è compatibile con GPL-3, non con GPL-2). GPL-3.0 è compatibile con GPL-3. AGPL-3.0 in ingresso forzerebbe OMBRA ad AGPL-3, cosa che la mappa già ammette come opzione. Nessuna delle opzioni è bloccante; `ladybug-comfort` è l'unica che vincola la scelta.
 
 ### 3.3 Osservazioni sul codice, dalla lettura diretta
 
-- **`UMEP-dev/solweig` è, per CLIMESH, il candidato più interessante e va guardato prima di scrivere qualsiasi riga.** È la riscrittura Rust ufficiale della pipeline SOLWEIG: `rust/src/{tmrt,utci,pet,shadowing,skyview,perez,patch_radiation}.rs`, con shader WGSL per ombre, SVF e cielo anisotropo su GPU (`wgpu 27`), parallelismo `rayon`, `lto = "fat"`, `panic = "abort"`. Licenza GPL-3.0, stessa di CLIMESH. `[P]` — https://github.com/UMEP-dev/solweig/blob/main/rust/Cargo.toml
+- **`UMEP-dev/solweig` è, per OMBRA, il candidato più interessante e va guardato prima di scrivere qualsiasi riga.** È la riscrittura Rust ufficiale della pipeline SOLWEIG: `rust/src/{tmrt,utci,pet,shadowing,skyview,perez,patch_radiation}.rs`, con shader WGSL per ombre, SVF e cielo anisotropo su GPU (`wgpu 27`), parallelismo `rayon`, `lto = "fat"`, `panic = "abort"`. Licenza GPL-3.0, stessa di OMBRA. `[P]` — https://github.com/UMEP-dev/solweig/blob/main/rust/Cargo.toml
   - **Limite `[P]`**: `crate-type = ["cdylib"]` e nome pacchetto `rustalgos`. **Non è pubblicato su crates.io e non è utilizzabile come dipendenza Rust così com'è**: è un modulo di estensione Python. Per riusarlo da un binario Rust bisogna forkarlo e cambiare il tipo di crate.
   - **Autodichiarazione degli autori `[P]`**: *"This package is an experimental, compatibility-focused implementation of the SOLWEIG model, not the reference implementation."*
 - **Il crate `thermalcomfort`** (MIT, `no_std`, WASM) è l'unica libreria Rust *pubblicata* che copra PET e UTCI, e sarebbe la scelta ovvia — ma ha **0 stelle, 355 download e un solo autore, prima release febbraio 2026** `[P]`. `[I]` Bus factor 1: usabile, ma da vendorare o da tenere sotto test di parità propri, non da trattare come dipendenza stabile.
@@ -328,7 +328,7 @@ Tutti i valori seguenti sono `[M]`. Derivate calcolate a differenze finite centr
 
 Tre letture dirette:
 
-1. **UTCI comprime la MRT di un fattore ~4 d'estate (0,25 K/K) e ~2,7 d'inverno (0,37 K/K).** Un ΔTmrt di 28 K fra sole e ombra si traduce in ~7 K di UTCI. Questo è il vero fattore di conversione fra il prodotto di CLIMESH e il numero che l'utente legge.
+1. **UTCI comprime la MRT di un fattore ~4 d'estate (0,25 K/K) e ~2,7 d'inverno (0,37 K/K).** Un ΔTmrt di 28 K fra sole e ombra si traduce in ~7 K di UTCI. Questo è il vero fattore di conversione fra il prodotto di OMBRA e il numero che l'utente legge.
 2. **La sensibilità al vento è 3 volte maggiore d'inverno che d'estate.** −3 K per m/s contro −1 K per m/s.
 3. Sotto 0,5 m/s la derivata cambia segno (+0,1 K per m/s a Tmrt = 60): è un artefatto del polinomio fuori dal suo intervallo di validità, non fisica. **Confermare il clamp a 0,5 m/s è obbligatorio.**
 
@@ -381,7 +381,7 @@ UTCI vuole il vento **a 10 m**. Gli strumenti esistenti fanno tre cose diverse:
 
 **La sola scelta di `z0` sposta UTCI di 3,5 K d'estate e 4 K d'inverno** — più dell'intero effetto di un albero, e senza che nessun dato la giustifichi.
 
-`[I]` **Conseguenza per CLIMESH, e a mio avviso l'argomento più forte del ticket.** Il file EPW fornisce la velocità del vento **già a 10 m su terreno aperto**: EnergyPlus lo assume esplicitamente, con `z_met = 10 m`, `α_met = 0,14`, `δ_met = 270 m` perché *"most meteorological stations are located in an open field"* `[P]` — https://bigladdersoftware.com/epx/docs/23-2/engineering-reference/outside-surface-heat-balance.html, §Local Wind Speed Calculation. Se CLIMESH alimenta UTCI direttamente con il vento dell'EPW, **non compie nessuna estrapolazione**: consuma l'input alla quota per cui l'indice è definito. È l'unica catena in cui il vento non risolto non introduce un parametro inventato. Il momento in cui CLIMESH decide di calcolare anche PET è il momento in cui deve inventarsi un `z0` o un esponente, e reintrodurre esattamente il problema che ENVI-met denuncia.
+`[I]` **Conseguenza per OMBRA, e a mio avviso l'argomento più forte del ticket.** Il file EPW fornisce la velocità del vento **già a 10 m su terreno aperto**: EnergyPlus lo assume esplicitamente, con `z_met = 10 m`, `α_met = 0,14`, `δ_met = 270 m` perché *"most meteorological stations are located in an open field"* `[P]` — https://bigladdersoftware.com/epx/docs/23-2/engineering-reference/outside-surface-heat-balance.html, §Local Wind Speed Calculation. Se OMBRA alimenta UTCI direttamente con il vento dell'EPW, **non compie nessuna estrapolazione**: consuma l'input alla quota per cui l'indice è definito. È l'unica catena in cui il vento non risolto non introduce un parametro inventato. Il momento in cui OMBRA decide di calcolare anche PET è il momento in cui deve inventarsi un `z0` o un esponente, e reintrodurre esattamente il problema che ENVI-met denuncia.
 
 ### 4.5 Sensibilità di PET — quello che non ho potuto misurare
 
@@ -394,13 +394,13 @@ Quello che si può dire con fonte:
 
 Fonte da recuperare per chiudere il vuoto: Fröhlich & Matzarakis (2016), https://doi.org/10.1007/s00704-015-1410-5.
 
-### 4.6 Il vento semplificato di CLIMESH è accettabile?
+### 4.6 Il vento semplificato di OMBRA è accettabile?
 
 `[I]` — **raccomandazione, non decisione.**
 
 **Sì per l'estate, con riserva dichiarata per l'inverno.** Argomenti, in ordine di peso:
 
-1. **Precedente diretto**: SOLWEIG, che è lo strumento libero contro cui la mappa prevede di validare CLIMESH, fa **esattamente questo**. `compute_utci_grid` costruisce la griglia di vento con `np.full_like(tmrt, wind)`: un solo valore scalare per tutto il dominio, per ogni passo temporale. `[P]` — https://github.com/UMEP-dev/solweig/blob/main/pysrc/solweig/postprocess.py:55. La struttura dati `Weather` ha un unico campo scalare `ws`, default 1,0 m/s. `[P]` — `pysrc/solweig/models/weather.py:55, 111`.
+1. **Precedente diretto**: SOLWEIG, che è lo strumento libero contro cui la mappa prevede di validare OMBRA, fa **esattamente questo**. `compute_utci_grid` costruisce la griglia di vento con `np.full_like(tmrt, wind)`: un solo valore scalare per tutto il dominio, per ogni passo temporale. `[P]` — https://github.com/UMEP-dev/solweig/blob/main/pysrc/solweig/postprocess.py:55. La struttura dati `Weather` ha un unico campo scalare `ws`, default 1,0 m/s. `[P]` — `pysrc/solweig/models/weather.py:55, 111`.
 2. **Ordine di grandezza dell'errore**: d'estate un errore di 1 m/s costa 0,85 K di UTCI, equivalente a 3,4 K di errore su MRT — comparabile all'errore che il modello radiativo ha comunque (§5.2). Non introduce un errore dominante.
 3. **Nessuna estrapolazione**: il vento EPW è già a 10 m, la quota che UTCI richiede (§4.4).
 4. **Contro, e va scritto nel report dell'utente**: d'inverno l'errore triplica. Con Ta = 5 °C e vento sbagliato di un fattore 2 si sbaglia UTCI di 3–9 K, cioè **si può cambiare categoria di stress termico**. Per il giorno 15/01/2021 del caso studio, le mappe di UTCI vanno accompagnate da un avvertimento esplicito, non da una legenda muta.
@@ -521,4 +521,4 @@ I dati della terza riga vengono dal contesto fissato nella mappa (issue #1) e da
 
 **Interne**
 - `research/envi-met.md` — ricognizione ENVI-met, in particolare §2.4 (radiazione AVF/IVS), §2.8 (BIO-met), §2.11 (accuratezza)
-- Issue [#1](https://github.com/maeurong/CLIMESH/issues/1) — mappa del progetto, premesse fissate
+- Issue [#1](https://github.com/maeurong/OMBRA/issues/1) — mappa del progetto, premesse fissate

@@ -46,7 +46,7 @@ impl Lingua {
     /// is more likely to read English than Italian, and the project's own
     /// documents are the place where Italian is the default.
     pub fn dall_ambiente(variabili: impl Fn(&str) -> Option<String>) -> Self {
-        ["CLIMESH_LINGUA", "LC_ALL", "LC_MESSAGES", "LANG"]
+        ["OMBRA_LINGUA", "LC_ALL", "LC_MESSAGES", "LANG"]
             .into_iter()
             .find_map(|nome| variabili(nome).and_then(|v| Self::dal_codice(&v)))
             .unwrap_or(Self::Inglese)
@@ -114,14 +114,14 @@ pub struct Messaggi {
 }
 
 pub const ITALIANO: Messaggi = Messaggi {
-    uso: "uso: climesh <comando> [opzioni]",
+    uso: "uso: ombra <comando> [opzioni]",
     descrizione_costruisci: "  costruisci <modello.inx> <cartella>   un Progetto da un file .INX",
     descrizione_esegui: "  esegui <cartella>                     tutte le Corse del Progetto",
     descrizione_interroga: "  interroga <giornale.toml>             che cosa dice un Giornale",
     opzioni: "opzioni: --lingua it|en   --aiuto   --versione",
 
     comando_assente: "manca il comando",
-    comando_ignoto: |c| format!("«{c}» non è un comando di climesh"),
+    comando_ignoto: |c| format!("«{c}» non è un comando di ombra"),
     opzione_ignota: |o| format!("«{o}» non è un'opzione di questo comando"),
     opzione_senza_valore: |o| format!("«{o}» vuole un valore dopo di sé"),
     argomento_di_troppo: |a| format!("«{a}» è un argomento di troppo"),
@@ -164,14 +164,14 @@ pub const ITALIANO: Messaggi = Messaggi {
 };
 
 pub const INGLESE: Messaggi = Messaggi {
-    uso: "usage: climesh <command> [options]",
+    uso: "usage: ombra <command> [options]",
     descrizione_costruisci: "  costruisci <model.inx> <folder>       a Progetto from an .INX file",
     descrizione_esegui: "  esegui <folder>                       every Corsa of the Progetto",
     descrizione_interroga: "  interroga <giornale.toml>             what a Giornale says",
     opzioni: "options: --lingua it|en   --aiuto   --versione",
 
     comando_assente: "no command given",
-    comando_ignoto: |c| format!("\"{c}\" is not a climesh command"),
+    comando_ignoto: |c| format!("\"{c}\" is not a ombra command"),
     opzione_ignota: |o| format!("\"{o}\" is not an option of this command"),
     opzione_senza_valore: |o| format!("\"{o}\" wants a value after it"),
     argomento_di_troppo: |a| format!("\"{a}\" is one argument too many"),
