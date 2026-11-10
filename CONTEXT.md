@@ -23,8 +23,8 @@ Il file meteo più l'intervallo di date e i parametri di forcing. È un oggetto 
 _Avoid_: clima, meteo, condizioni
 
 **Ora**:
-Un intervallo di sessanta minuti di un Periodo, mai un istante: ha un inizio e una fine, e porta un record del file meteo. Il sole di un'Ora è quello del suo centro.
-_Avoid_: passo, timestep, istante
+Un intervallo di sessanta minuti di un Periodo, mai un istante: un valore orario, del meteo o del sole, vale per l'intervallo intero e non per il suo inizio.
+_Avoid_: passo orario, timestep, istante
 
 **Corsa**:
 Uno Scenario calcolato per un Periodo. È l'unità che produce risultati e a cui è associato un Giornale.
