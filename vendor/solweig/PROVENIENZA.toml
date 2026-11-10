@@ -249,7 +249,7 @@ piu' basso, e una cache per geometria risparmierebbe 0,19 s su 60. Non si
 costruisce finche' un dominio piu' grande non la chiede.
 """
 geometria = """
-Torre di 10 m al centro di un dominio piano 21x21 a passo 1 m, sole a sud a 45
+Torre di 10 m al centro di un dominio piano 25x25 a passo 1 m, sole a sud a 45
 gradi: l'ombra cade a nord, il lato a sud e il lato a ovest restano al sole. E
 un dominio piano con sole a 60 gradi è illuminato ovunque. La convenzione
 dell'azimut coincide quindi con la nostra — gradi da nord in senso orario, riga
