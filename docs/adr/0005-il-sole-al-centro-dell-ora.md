@@ -6,16 +6,16 @@ in `H`, e le sue radiazioni sono integrate sui minuti che precedono `H`. A monte
 di quel record si calcola al centro dell'intervallo. OMBRA 0.1.0 lo calcola alle ore intere
 contate dall'inizio del Periodo, e non abbina ancora un record meteo a ciascuna: con
 l'abbinamento fissato qui sotto, quell'istante è l'inizio dell'intervallo. A Bastia Umbra, il 21
-giugno, fra l'inizio e il centro passano fino a 5,39° di altezza e 19,96° di azimut. Lo scarto
-viene dall'istante e non dall'algoritmo: nei due giorni misurati i due algoritmi solari
-differiscono al più di 0,47°. La misura è in
+giugno, fra il sole di OMBRA all'inizio e quello di monte al centro passano fino a 5,39° di
+altezza e 19,96° di azimut. Quasi tutto lo scarto viene dall'istante: nei due giorni misurati i
+due algoritmi solari differiscono al più di 0,47°. La misura è in
 [`docs/ricerca/02-sole-meta-passo.md`](../ricerca/02-sole-meta-passo.md), la decisione è stata
 presa nel ticket [Istante del sole per un record orario](https://github.com/maeurong/OMBRA/issues/35).
 
 Si decide: **il sole di un'[Ora](../../CONTEXT.md) si calcola al suo centro.** L'Ora `k` di un
 Periodo, contata da zero, va da `k` a `k + 1` ore dopo la mezzanotte del primo giorno, nell'ora
 del fuso che il file meteo dichiara, senza ora legale. Le corrisponde il record EPW numero
-`k + 1` contato dal primo di quel giorno, e il suo sole è quello di `k + 0:30`. Vale per tutto
+`k + 1` contato dal primo record di quel giorno, e il suo sole è quello di `k + 0:30`. Vale per tutto
 ciò che una Corsa calcola in quell'Ora: le ombre, le ore di sole, le serie dei Punti di
 osservazione, la verifica dell'ombra nel Giornale, e la radiazione quando la catena radiativa
 entrerà.
@@ -38,9 +38,6 @@ Per simmetria sbaglierebbe quanto l'inizio, con il segno opposto; non è stata m
 prodotti e metterebbe due soli nella stessa Ora: il Giornale verificherebbe un'ombra che non è
 quella entrata nella Tmrt.
 
-**La convenzione del sole come ingrediente dell'Impronta**, al posto del cambio di versione,
-sarebbe un parametro con un solo valore possibile.
-
 ## Cosa comporta
 
 **`dectime` e `jday` si calcoleranno sull'etichetta, come a monte.** Quando lo strato Python di
@@ -51,8 +48,10 @@ un'incoerenza ereditata e dichiarata, perché uniformarli romperebbe la parità 
 
 **Le ombre diurne prodotte alla 0.1.0 cambieranno.** L'Impronta prende la versione del binario e
 non la convenzione del sole. Il commit che sposterà il sole porterà quindi la versione a 0.2.0:
-senza, la stessa Impronta nominerebbe due risultati diversi. Le Corse già calcolate restano vere
-per la versione che il loro Giornale dichiara.
+senza, la stessa Impronta nominerebbe due risultati diversi. Fare della convenzione un
+ingrediente dell'Impronta è stato scartato: sarebbe un parametro con un solo valore possibile,
+che non distinguerebbe mai due Corse. Le Corse già calcolate restano vere per la versione che il
+loro Giornale dichiara.
 
 **Le ore di sole saranno campionate dentro l'Ora che dichiarano.** Sommare un'ombra per Ora è
 un'integrazione. Il sole a `k` ore rappresenta l'intervallo da `k − 0:30` a `k + 0:30`, non
@@ -64,8 +63,8 @@ nel record.** Il centro cade di notte, la media oraria no. Come a monte si tratt
 è stato ancora letto: è annotato nella mappa fra le cose da verificare.
 
 **Il file meteo dovrà essere orario.** Alla 0.1.0 OMBRA non legge il campo minuto, e un file
-sub-orario entra in silenzio, con ogni record contato come un'Ora. Con la correzione, un record
-per ora con il minuto a 0 o a 60 sarà un file orario: l'ora la darà il campo ora, e il Giornale
+sub-orario viene letto senza errori. Con la correzione, un file con un record per ora e il
+minuto a 0 o a 60 sarà orario: l'ora la darà il campo ora, e il Giornale
 annoterà il minuto trovato. Più record per la stessa ora, o un altro minuto, saranno un errore
 detto prima del calcolo. OMBRA accetterà così i file con minuto 60, che il dizionario EPW
 dichiara validi e che a monte, al commit letto dalla ricerca, vengono scartati; per confrontarli

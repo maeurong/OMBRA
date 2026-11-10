@@ -23,7 +23,7 @@ Il file meteo più l'intervallo di date e i parametri di forcing. È un oggetto 
 _Avoid_: clima, meteo, condizioni
 
 **Ora**:
-Un intervallo di sessanta minuti di un Periodo, mai un istante: un valore orario, del meteo o del sole, vale per l'intervallo intero e non per il suo inizio.
+Un intervallo di sessanta minuti di un Periodo, mai un istante.
 _Avoid_: passo orario, timestep, istante
 
 **Corsa**:
