@@ -260,6 +260,172 @@ fn un_file_che_non_esiste_dice_quale() {
     assert!(errore.contains("questo-file-non-esiste.epw"), "{errore}");
 }
 
+/// The same record with another minute field. `riga` writes a zero there.
+fn con_minuto(riga: String, minuto: &str) -> String {
+    riga.replacen(",0,?9?9", &format!(",{minuto},?9?9"), 1)
+}
+
+#[test]
+fn un_file_con_il_minuto_a_sessanta_su_tutte_le_righe_e_orario() {
+    // The EPW dictionary gives the minute as 1..60, so an hourly file written
+    // to the letter carries 60, and files in the wild write 0. The hour comes
+    // from the hour field either way, so OMBRA takes both as hourly.
+    let sessanta: Vec<String> = (1..=24)
+        .map(|ora| con_minuto(riga_piena(1, 1, ora), "60"))
+        .collect();
+    let f = leggi(&epw(sessanta)).unwrap();
+    assert_eq!(f.ore_totali(), 24);
+    assert_eq!(f.minuti, vec![60]);
+    assert_eq!(f.ore_dal(data(1, 1), 1).unwrap()[0].ora, 1);
+
+    let zero: Vec<String> = (1..=24).map(|ora| riga_piena(1, 1, ora)).collect();
+    assert_eq!(leggi(&epw(zero)).unwrap().minuti, vec![0]);
+}
+
+#[test]
+fn un_file_che_scrive_zero_su_un_ora_e_sessanta_su_un_altra_dice_tutti_e_due() {
+    // Every record is still one hour, so the file is hourly. The Giornale gets
+    // both values.
+    let f = leggi(&epw(vec![
+        con_minuto(riga_piena(1, 1, 1), "60"),
+        riga_piena(1, 1, 2),
+        con_minuto(riga_piena(1, 1, 3), "60"),
+    ]))
+    .unwrap();
+    assert_eq!(f.minuti, vec![0, 60]);
+}
+
+#[test]
+fn un_minuto_che_non_e_ne_zero_ne_sessanta_e_rifiutato() {
+    // A record at minute 30 is half of an hour, or an instant: either way it is
+    // not the hourly mean the sun of an Ora is centred on, and a reader that
+    // looked at the hour field alone would take it for one.
+    let errore = leggi(&epw(vec![
+        riga_piena(1, 1, 1),
+        con_minuto(riga_piena(1, 1, 2), "30"),
+    ]))
+    .unwrap_err();
+    assert!(
+        matches!(errore, ombra::meteo::MeteoError::MinutoNonOrario { .. }),
+        "variante: {errore:?}"
+    );
+    assert!(errore.non_orario());
+    let errore = errore.to_string();
+    assert!(errore.contains("riga 10"), "{errore}");
+    assert!(errore.contains("«30»"), "{errore}");
+}
+
+#[test]
+fn un_minuto_che_non_e_esattamente_zero_o_sessanta_non_passa() {
+    // Truncating before comparing would let 0.5 through as 0 and 60.9 as 60,
+    // and a cast would turn NaN into 0. A field that is empty or is not a
+    // number is not 0 or 60 either: it stops the Corsa like a 30 does, instead
+    // of making the file unreadable, which the Corsa survives.
+    for minuto in [
+        "0.5", "60.9", "-60", "15", "45", "NaN", "inf", "", " ", "x", "30x",
+    ] {
+        let esito = leggi(&epw(vec![con_minuto(riga_piena(1, 1, 1), minuto)]));
+        match esito {
+            Err(errore @ ombra::meteo::MeteoError::MinutoNonOrario { .. }) => {
+                assert!(errore.non_orario());
+                assert!(errore.to_string().contains("riga 9"), "{errore}");
+            }
+            altro => panic!("il minuto «{minuto}» è passato: {altro:?}"),
+        }
+    }
+    // Minus zero is zero, and sixty is sixty however it is spelled.
+    for (minuto, atteso) in [("-0", 0), ("60.0", 60), (" 60 ", 60), ("6e1", 60)] {
+        let f = leggi(&epw(vec![con_minuto(riga_piena(1, 1, 1), minuto)])).unwrap();
+        assert_eq!(f.minuti, vec![atteso], "minuto «{minuto}»");
+    }
+}
+
+#[test]
+fn il_minuto_rifiutato_arriva_nel_messaggio_corto_e_senza_caratteri_di_controllo() {
+    // The message is printed on a terminal and written into every Giornale of
+    // the Progetto, and the file may come from somebody else: a field of a
+    // million digits is a number to the parser, and an escape sequence would
+    // rewrite the line that says the Corsa failed.
+    let lungo = "9".repeat(1_000_000);
+    let errore = leggi(&epw(vec![con_minuto(riga_piena(1, 1, 1), &lungo)]))
+        .unwrap_err()
+        .to_string();
+    assert!(errore.chars().count() < 400, "{} caratteri", errore.len());
+    assert!(errore.contains('…'), "il taglio va dichiarato: {errore}");
+
+    let errore = leggi(&epw(vec![con_minuto(
+        riga_piena(1, 1, 1),
+        "30\u{1b}[2K\u{7}",
+    )]))
+    .unwrap_err()
+    .to_string();
+    assert!(!errore.chars().any(char::is_control), "{errore:?}");
+    assert!(errore.contains("«30[2K»"), "{errore}");
+}
+
+#[test]
+fn due_record_per_la_stessa_ora_sono_rifiutati() {
+    // What a sub-hourly file looks like once its minutes are 0 or 60, and what
+    // a file with a pasted line looks like. `ore_dal` counts records and calls
+    // them hours: with two records for one hour every hour after it would be
+    // the wrong one.
+    for secondo in ["0", "60"] {
+        let errore = leggi(&epw(vec![
+            riga_piena(7, 15, 13),
+            con_minuto(riga_piena(7, 15, 13), secondo),
+            riga_piena(7, 15, 14),
+        ]))
+        .unwrap_err();
+        assert!(
+            matches!(errore, ombra::meteo::MeteoError::OraRipetuta { .. }),
+            "variante: {errore:?}"
+        );
+        assert!(errore.non_orario());
+        let errore = errore.to_string();
+        assert!(errore.contains("riga 10"), "{errore}");
+        assert!(errore.contains("15/7"), "{errore}");
+        assert!(errore.contains("ora 13"), "{errore}");
+        assert!(errore.contains("alla riga 9"), "{errore}");
+    }
+}
+
+#[test]
+fn un_ora_ripetuta_lontano_dalla_prima_e_rifiutata_lo_stesso() {
+    // A day pasted twice repeats nothing next to itself: record 25 follows
+    // record 24, and a check against the record before would let it through.
+    let giorno = || (1..=24).map(|ora| riga_piena(7, 15, ora));
+    let errore = leggi(&epw(giorno().chain(giorno()).collect())).unwrap_err();
+    assert!(
+        matches!(errore, ombra::meteo::MeteoError::OraRipetuta { .. }),
+        "variante: {errore:?}"
+    );
+    let errore = errore.to_string();
+    // Eight header lines, twenty-four records, and the twenty-fifth.
+    assert!(errore.contains("riga 33"), "{errore}");
+    assert!(errore.contains("alla riga 9"), "{errore}");
+}
+
+#[test]
+fn la_stessa_ora_di_un_altro_anno_non_e_un_ora_ripetuta() {
+    // A file of two years has one record per hour and is hourly. The year is
+    // read as the file writes it, so this stays true of a typical year made of
+    // months taken from different years.
+    let f = leggi(&epw(vec![
+        riga_piena(7, 15, 13),
+        riga_piena(7, 15, 13).replacen("2005,", "2006,", 1),
+    ]))
+    .unwrap();
+    assert_eq!(f.ore_totali(), 2);
+}
+
+#[test]
+fn un_file_che_non_si_legge_non_e_un_file_non_orario() {
+    // The Corsa tells the two apart: a file it could not read leaves it without
+    // a time zone, a file it read and found sub-hourly stops it.
+    let errore = Epw::leggi(Path::new("questo-file-non-esiste.epw")).unwrap_err();
+    assert!(!errore.non_orario());
+}
+
 #[test]
 #[ignore = "legge il file EPW del corso, che non è nel repository"]
 fn il_file_di_perugia_si_legge_intero() {
