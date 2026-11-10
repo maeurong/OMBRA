@@ -132,3 +132,31 @@ il testo dice esplicitamente che senza la quarta, che è cara, le altre due non
 comprano niente.
 
 Il ripiego di questo ADR resta il piano se la risposta è no o non arriva.
+
+## Aggiornamento, 2026-11-10: a monte hanno detto sì, e il ripiego si ferma
+
+La risposta è arrivata sulla stessa
+[richiesta](https://github.com/UMEP-dev/solweig/issues/14), da un collaboratore
+del progetto. La funzione nominata per il passo fuso la scrivono loro, nella
+prossima release, insieme a `crate-type = ["cdylib", "rlib"]`. Per l'API pubblica
+preferiscono un `pub mod api` stretto, che riesporta solo ciò che CLIMESH chiama,
+e ne chiedono l'elenco. `pyo3` e `numpy` dietro una feature non sono in programma.
+
+**La release non ha una data**, e la funzione non esiste ancora: questo ADR non
+si chiude oggi. Si chiude quando la porta nativa è in un tag.
+
+**Il ripiego si ferma** (Mario, 2026-11-10). `pipeline.rs` è cambiato sia in
+0.1.0b97 sia in 0.1.0b98, ed è il file che il ripiego dovrebbe tagliare per
+marcatori: costruirlo adesso significa scrivere una trasformazione da buttare
+alla release. Non è fissata una data oltre la quale si riprende; se serve, la
+decide Mario.
+
+**Il pin va spostato comunque**, e non per il passo fuso. 0.1.0b97 corregge un
+difetto di `skyview.rs`: senza strato di chioma, le matrici d'ombra della
+vegetazione che restituisce sono sbagliate per il cielo anisotropo. I valori di
+sky view factor non ne sono toccati, e CLIMESH oggi legge solo quelli. Il Modello
+di cielo anisotropo le matrici le userà: il pin deve essere almeno a 0.1.0b97
+prima di allora.
+
+L'implementazione di riferimento che il pacchetto segue è ora
+[UMEP-dev/umep-solweig](https://github.com/UMEP-dev/umep-solweig).
