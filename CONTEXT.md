@@ -22,6 +22,10 @@ _Avoid_: variante, alternativa, stato
 Il file meteo più l'intervallo di date e i parametri di forcing. È un oggetto a sé perché è riusabile fra Scenari: nominarlo una volta sola è ciò che impedisce a più Corse di divergere per una svista.
 _Avoid_: clima, meteo, condizioni
 
+**Ora**:
+Un intervallo di sessanta minuti di un Periodo, mai un istante: ha un inizio e una fine, e porta un record del file meteo. Il sole di un'Ora è quello del suo centro.
+_Avoid_: passo, timestep, istante
+
 **Corsa**:
 Uno Scenario calcolato per un Periodo. È l'unità che produce risultati e a cui è associato un Giornale.
 _Avoid_: run, simulazione, esecuzione
