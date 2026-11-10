@@ -36,7 +36,7 @@ scelto UTCI: ne esiste un solo polinomio autoritativo.
 """
 
 [cosa_e_stato_tolto]
-involucri_python = 10
+involucri_python = 16
 nota = """
 Da `utci.rs`: il solo `utci_grid`, che prende e restituisce array numpy. Il
 polinomio, la pressione di vapore saturo e `utci_single` restano.
@@ -135,7 +135,7 @@ riconciliabile un aggiornamento.
 [come_si_rifa]
 comandi = """
 git clone https://github.com/UMEP-dev/solweig /tmp/solweig
-cd /tmp/solweig && git checkout <commit>
+git -C /tmp/solweig checkout <commit>
 python3 vendor/solweig/estrai.py /tmp/solweig
 """
 nota = """
