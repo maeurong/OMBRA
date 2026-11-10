@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Portare CLIMESH dal lettore `.INX` che esiste oggi a una Corsa completa sul caso di riferimento che scrive campi e Giornale, misurando il budget dei 60 secondi.
+**Goal:** Portare OMBRA dal lettore `.INX` che esiste oggi a una Corsa completa sul caso di riferimento che scrive campi e Giornale, misurando il budget dei 60 secondi.
 
 **Architecture:** Cinque strati, ciascuno verificabile senza il successivo. Gli oggetti del dominio sono la verità e stanno in un Progetto su disco; la Derivazione li trasforma nei raster co-registrati che il Motore pretende; il Motore è il nucleo Rust di `UMEP-dev/solweig`, riusato e non riscritto; il Giornale registra ingressi, scelte e verifiche. Nessuna superficie utente: questo piano si guida dai test.
 
@@ -74,8 +74,8 @@ cargo tree -e normal | grep -iE "sys$|cc |bindgen" || echo "nessuna dipendenza n
 `tests/progetto.rs`:
 
 ```rust
-use climesh::dominio::*;
-use climesh::progetto;
+use ombra::dominio::*;
+use ombra::progetto;
 
 fn progetto_di_prova() -> Progetto {
     Progetto {
@@ -184,7 +184,7 @@ fn tempdir_di_prova(nome: &str) -> std::path::PathBuf {
 - [ ] **Step 3: Eseguire il test e verificare che fallisca**
 
 Run: `cargo test --test progetto`
-Expected: FAIL, `unresolved import climesh::dominio`.
+Expected: FAIL, `unresolved import ombra::dominio`.
 
 - [ ] **Step 4: Scrivere i tipi del dominio**
 
@@ -486,7 +486,7 @@ pub fn leggi(dir: impl AsRef<Path>) -> Result<Progetto, ProgettoError> {
 `src/lib.rs`:
 
 ```rust
-//! CLIMESH: simulazione del microclima urbano per il comfort termico all'aperto.
+//! OMBRA: simulazione del microclima urbano per il comfort termico all'aperto.
 
 pub mod dominio;
 pub mod inx;

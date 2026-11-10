@@ -5,7 +5,7 @@
 
 use std::fmt::Write as _;
 
-use climesh::inx::{read_inx, Matrix};
+use ombra::inx::{read_inx, Matrix};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let Some(path) = std::env::args().nth(1) else {

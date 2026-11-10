@@ -1,7 +1,7 @@
 /* Hallmark · macrostructure: Map / Diagram · tone: technical · anchor hue: ultramarine
  * theme: Grid · paper light · display grotesk-heavy lowercase · accent ultramarine
  *
- * CLIMESH design tokens — the source of truth. The reasoning lives in DESIGN.md.
+ * OMBRA design tokens — the source of truth. The reasoning lives in DESIGN.md.
  * Single-world light sheet: Grid forbids a dark page, so every colour is painted
  * explicitly and nothing is inherited from the host.
  */
@@ -71,7 +71,7 @@
 }
 
 /* ── the data layer ─────────────────────────────────────────────────────────
- * The only polychrome thing in a CLIMESH interface. Everything above is the
+ * The only polychrome thing in a OMBRA interface. Everything above is the
  * chrome; everything here is a measurement. See DESIGN.md § Il colore dei dati.
  */
 :root {

@@ -84,7 +84,7 @@ compare soltanto nell'attributo. Gli si toglie l'attributo e si tiene il resto:
 una riga in meno, zero righe cambiate, che e' la trasformazione piu'
 conservativa disponibile.
 
-L'alternativa era riscrivere quelle otto righe dentro CLIMESH, e sarebbe stata
+L'alternativa era riscrivere quelle otto righe dentro OMBRA, e sarebbe stata
 peggiore: fisica vendorata fuori da `vendor/`, dove al prossimo aggiornamento
 nessuno la riconoscerebbe come tale. `estrai.py` si ferma con errore se a monte
 quell'elemento sparisce o smette di essere annotato.
@@ -110,7 +110,7 @@ lo stesso, perche' una regola con un ritaglio di regione e' una regola che
 qualcuno dovra' rileggere; e perche' se un giorno la feature si accendesse,
 `pyo3` non ci sarebbe comunque.
 
-`crop_svf_intermediate` non ha oggi nessun chiamante in CLIMESH: e' esposto
+`crop_svf_intermediate` non ha oggi nessun chiamante in OMBRA: e' esposto
 perche' tagliarlo sarebbe una modifica al codice rimasto, e questo file dichiara
 che non ce ne sono.
 """

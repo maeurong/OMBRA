@@ -1,6 +1,6 @@
-# CLIMESH
+# OMBRA
 
-Simulazione del microclima urbano per il comfort termico all'aperto: dato un luogo e un file meteo, CLIMESH calcola dove cade l'ombra, quanta radiazione riceve una persona e quanto caldo sente, e lo fa in modo che il risultato sia rifacibile e citabile.
+Simulazione del microclima urbano per il comfort termico all'aperto: dato un luogo e un file meteo, OMBRA calcola dove cade l'ombra, quanta radiazione riceve una persona e quanto caldo sente, e lo fa in modo che il risultato sia rifacibile e citabile.
 
 ## Language
 

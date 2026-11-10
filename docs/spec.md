@@ -1,4 +1,4 @@
-# Spec — CLIMESH
+# Spec — OMBRA
 
 Questo documento dice **cosa si costruisce e in che forma**. Non ripete il
 perché: quello sta altrove e va letto prima.
@@ -270,7 +270,7 @@ Registrate, non risolte. Nessuna blocca l'inizio.
 - **Il valore predefinito dell'altezza** quando ogni anello della catena fallisce,
   e con quale avviso.
 - **Il protocollo di confronto** con i risultati pubblicati del caso di
-  riferimento, dato che CLIMESH produce comfort radiativo e la relazione riporta
+  riferimento, dato che OMBRA produce comfort radiativo e la relazione riporta
   temperatura dell'aria.
 - **Packaging e distribuzione**: piattaforme, rilasci, versionamento.
 - **La tolleranza numerica** del contratto di riproducibilità, che va misurata e

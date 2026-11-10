@@ -617,9 +617,9 @@ pub fn esegui(
             // whoever copies this line is exactly the person who will never
             // scroll down to the Scenario's provenance.
             citazione: format!(
-                "CLIMESH {versione_binario}, nucleo solweig {} preso il {}; \
+                "OMBRA {versione_binario}, nucleo solweig {} preso il {}; \
                  Progetto «{}», Scenario «{}»{}, Periodo «{}»; Corsa {}. \
-                 https://github.com/maeurong/CLIMESH",
+                 https://github.com/maeurong/OMBRA",
                 motore.commit,
                 motore.data_presa,
                 progetto.nome,
@@ -723,7 +723,7 @@ pub fn esegui(
                     longitudine_gradi: luogo.longitudine,
                     fuso_ore: luogo.fuso_ore,
                     fuso_da: luogo.fonte_del_fuso,
-                    nota: "posizione solare calcolata da CLIMESH e non chiesta al Motore. \
+                    nota: "posizione solare calcolata da OMBRA e non chiesta al Motore. \
                            Le ore di un file EPW sono in ora solare tutto l'anno, senza \
                            spostamento estivo, e il fuso che le colloca nel giorno è quello \
                            dichiarato dal file",

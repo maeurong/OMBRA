@@ -1,7 +1,7 @@
 //! The weather file: EnergyPlus Weather, read without a dependency.
 //!
 //! An EPW is a text file with eight header lines and one record per hour of a
-//! typical year. CLIMESH reads two things from it: the place — latitude,
+//! typical year. OMBRA reads two things from it: the place — latitude,
 //! longitude and **time zone** — which the header carries, and the hourly
 //! values a Periodo asks for.
 //!
@@ -20,9 +20,9 @@ use crate::dominio::Data;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-/// The hourly record an EPW carries, cut down to what CLIMESH consumes.
+/// The hourly record an EPW carries, cut down to what OMBRA consumes.
 ///
-/// `None` is a value the file declares missing, never a value CLIMESH failed to
+/// `None` is a value the file declares missing, never a value OMBRA failed to
 /// parse: a field that is present and not a number fails the whole read.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ValoriOrari {
@@ -81,7 +81,7 @@ pub enum MeteoError {
         campo: &'static str,
         testo: String,
     },
-    /// A record with fewer fields than the columns CLIMESH reads.
+    /// A record with fewer fields than the columns OMBRA reads.
     RigaCorta {
         percorso: PathBuf,
         riga: usize,
@@ -147,10 +147,10 @@ impl fmt::Display for MeteoError {
 
 impl std::error::Error for MeteoError {}
 
-/// The eight header lines of an EPW, of which CLIMESH reads only the first.
+/// The eight header lines of an EPW, of which OMBRA reads only the first.
 const RIGHE_DI_INTESTAZIONE: usize = 8;
 
-/// Fields up to and including the wind speed, which is the last column CLIMESH
+/// Fields up to and including the wind speed, which is the last column OMBRA
 /// reads. A record is allowed to be longer, never shorter.
 const CAMPI_MINIMI: usize = 22;
 

@@ -2,8 +2,8 @@
 
 Il passo fuso di [`UMEP-dev/solweig`](https://github.com/UMEP-dev/solweig) riceve la
 trasmissività delle chiome come **uno scalare per passo orario**, `psi`, valido per l'intera
-griglia. CLIMESH ha due trasmissività nella stessa griglia, i sempreverdi e le chiome spoglie
-d'inverno, e la [risoluzione del ticket](https://github.com/maeurong/CLIMESH/issues/18) le ha
+griglia. OMBRA ha due trasmissività nella stessa griglia, i sempreverdi e le chiome spoglie
+d'inverno, e la [risoluzione del ticket](https://github.com/maeurong/OMBRA/issues/18) le ha
 confermate come vincolo. Un solo scalare sbaglia per costruzione proprio a Bastia d'inverno,
 dove il sole sotto le chiome è la domanda per cui il caso esiste.
 

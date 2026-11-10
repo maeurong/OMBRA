@@ -1,4 +1,4 @@
-# Caso di riferimento CLIMESH: Casa Evolutiva, Bastia Umbra (PG).
+# Caso di riferimento OMBRA: Casa Evolutiva, Bastia Umbra (PG).
 # Valori pubblicati nella relazione del caso studio, trascritti a mano perché
 # possano essere confrontati da un programma. TOML e non JSON per una ragione
 # sola: qui servono le note, e TOML ha i commenti.

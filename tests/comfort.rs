@@ -1,10 +1,10 @@
 //! UTCI. The polynomial is vendored and not ours, so these tests do not check
 //! its arithmetic: they check the properties that make it *the* UTCI rather
-//! than some polynomial, and they pin the two things CLIMESH adds — the range
+//! than some polynomial, and they pin the two things OMBRA adds — the range
 //! outside which the value is an extrapolation, and the bands it is read in.
 
-use climesh::comfort::{banda, fuori_intervallo, utci, utci_sul_campo};
-use climesh::derivazione::Raster;
+use ombra::comfort::{banda, fuori_intervallo, utci, utci_sul_campo};
+use ombra::derivazione::Raster;
 
 /// The reference environment UTCI is defined against: still air at half a metre
 /// per second, mean radiant temperature equal to the air temperature, and a
@@ -49,7 +49,7 @@ fn sopra_i_trenta_gradi_e_l_umidita_a_scostare_l_utci_dall_aria() {
 
 #[test]
 fn l_utci_cresce_con_la_temperatura_media_radiante() {
-    // The reason CLIMESH computes a radiant temperature at all: if the index
+    // The reason OMBRA computes a radiant temperature at all: if the index
     // did not move with it, the shade of a tree would not show up in the
     // result.
     let valori: Vec<f64> = [20.0, 30.0, 40.0, 50.0, 60.0]
@@ -159,7 +159,7 @@ fn una_temperatura_dell_aria_fuori_scala_e_segnalata_per_prima() {
 #[test]
 fn la_sentinella_di_monte_resta_quella_che_e() {
     // The reference implementation answers -999 to an argument at or below
-    // -999. Nothing in CLIMESH can produce one — a missing weather value is
+    // -999. Nothing in OMBRA can produce one — a missing weather value is
     // `None`, never a number — but the behaviour is pinned rather than assumed
     // away, and the range check reports it as the nonsense it is.
     assert_eq!(utci(-1000.0, 50.0, 20.0, 1.0), -999.0);

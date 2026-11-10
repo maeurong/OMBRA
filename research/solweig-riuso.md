@@ -1,7 +1,7 @@
-# SOLWEIG / UMEP — quanto è riusabile per CLIMESH e quanto costa
+# SOLWEIG / UMEP — quanto è riusabile per OMBRA e quanto costa
 
-**Scopo**: rispondere al ticket [#2](https://github.com/maeurong/CLIMESH/issues/2) — quanto del modello radiativo di SOLWEIG è riusabile per CLIMESH, e quanto costa farlo girare sul caso di riferimento (Casa Evolutiva, Bastia Umbra).
-**Data ricerca**: 2026-08-31. **Repo**: CLIMESH, branch `main`, HEAD `7f23d42` (`README.md` contiene solo `# CLIMESH`; unico altro documento `research/envi-met.md`, 527 righe).
+**Scopo**: rispondere al ticket [#2](https://github.com/maeurong/OMBRA/issues/2) — quanto del modello radiativo di SOLWEIG è riusabile per OMBRA, e quanto costa farlo girare sul caso di riferimento (Casa Evolutiva, Bastia Umbra).
+**Data ricerca**: 2026-08-31. **Repo**: OMBRA, branch `main`, HEAD `7f23d42` (`README.md` contiene solo `# OMBRA`; unico altro documento `research/envi-met.md`, 527 righe).
 
 **Convenzione di marcatura** (la stessa di `research/envi-met.md`)
 - `[P]` = confermato da fonte primaria (codice sorgente del progetto, documentazione ufficiale UMEP, testo delle licenze, metadati PyPI/GitHub).
@@ -19,7 +19,7 @@ Tre fatti cambiano il quadro rispetto a come il ticket era stato formulato.
 2. **Il codice di calcolo di SOLWEIG non dipende da QGIS** — mai dipeso, nella sostanza. Il modulo di calcolo di riferimento importa solo `numpy` e moduli fratelli; QGIS sta nel layer di interfaccia. Esistono oggi tre estrazioni QGIS-free ufficiali di UMEP, di cui una attiva e mantenuta. `[P]`
 3. **Il costo sul caso di riferimento non è un problema**: ho ricostruito la geometria di Bastia dal file `LAB1.INX` (50×50 celle a 1 m, 616 piante) e ho eseguito 48 ore di simulazione con il pacchetto `solweig`. **1,7 s con GPU, 36,4 s su CPU sola.** `[M]` Il budget di progetto è 60 s per il caso completo: rientra con GPU con tre ordini di grandezza di margine, e **non rientra** su CPU sola quando si contano tutti e quattro i run del caso completo (§ 5.4).
 
-Conseguenza per la scelta fra "riusare / reimplementare / riusare l'impianto concettuale": la domanda non è più *se* SOLWEIG sia portabile in Rust — **qualcuno l'ha già portato, sotto la stessa licenza che CLIMESH ha scelto**. La domanda diventa quale forma di riuso costi meno (§ 7).
+Conseguenza per la scelta fra "riusare / reimplementare / riusare l'impianto concettuale": la domanda non è più *se* SOLWEIG sia portabile in Rust — **qualcuno l'ha già portato, sotto la stessa licenza che OMBRA ha scelto**. La domanda diventa quale forma di riuso costi meno (§ 7).
 
 ---
 
@@ -99,9 +99,9 @@ UTCI: approssimazione polinomiale. PET: solutore iterativo del bilancio energeti
 
 ### 1.8 Cosa SOLWEIG non fa
 
-Non calcola temperatura dell'aria, umidità, vento: sono **input** dal file meteo, esattamente come nell'ambito fisico già deciso per CLIMESH nel ticket #1. Non c'è CFD, non c'è griglia verticale, non c'è modello di suolo profondo, non c'è fisiologia vegetale. `[P]` (assenza verificata su `specs/` e sull'albero `rust/src/`)
+Non calcola temperatura dell'aria, umidità, vento: sono **input** dal file meteo, esattamente come nell'ambito fisico già deciso per OMBRA nel ticket #1. Non c'è CFD, non c'è griglia verticale, non c'è modello di suolo profondo, non c'è fisiologia vegetale. `[P]` (assenza verificata su `specs/` e sull'albero `rust/src/`)
 
-> `[I]` La sovrapposizione fra l'ambito fisico di SOLWEIG e l'ambito fisico deciso per CLIMESH è **quasi perfetta**. Le differenze rimanenti riguardano l'ergonomia (CLI, binario singolo, import OSM, lettura INX, giornale della corsa), non la fisica.
+> `[I]` La sovrapposizione fra l'ambito fisico di SOLWEIG e l'ambito fisico deciso per OMBRA è **quasi perfetta**. Le differenze rimanenti riguardano l'ergonomia (CLI, binario singolo, import OSM, lettura INX, giornale della corsa), non la fisica.
 
 ---
 
@@ -133,7 +133,7 @@ Quindi la risposta alla domanda "esiste già un uso di SOLWEIG fuori da QGIS?" �
 
 ### 2.4 Ma non è un binario, ed è una libreria Python
 
-Due limiti concreti rispetto alla destinazione di CLIMESH ("binario Rust singolo senza installazione"): `[P]`
+Due limiti concreti rispetto alla destinazione di OMBRA ("binario Rust singolo senza installazione"): `[P]`
 
 - Il pacchetto `solweig` **non ha entry point da riga di comando** (nessun `[project.scripts]` in `pyproject.toml`): è una libreria, si guida da Python.
 - Il crate Rust si chiama `rustalgos`, ha `crate-type = ["cdylib"]` e **non è pubblicato su crates.io** (`crates.io/api/v1/crates/rustalgos` → "crate `rustalgos` does not exist"). Non è quindi consumabile con `cargo add`.
@@ -156,7 +156,7 @@ Ingombro: il venv completo pesa 247 MB; il solo `.so` Rust pesa 6,4 MB. `[M]`
 
 `[P]` — `README.md` di `UMEP-dev/solweig` § *Inputs and outputs*; [UMEP docs § Spatial data](https://umep-docs.readthedocs.io/en/latest/processor/Outdoor%20Thermal%20Comfort%20SOLWEIG.html).
 
-Note rilevanti per CLIMESH:
+Note rilevanti per OMBRA:
 
 - **L'EPW è letto nativamente** (`Weather.from_epw(path, start=..., end=...)`, parser Python puro). L'EPW di Perugia già presente in `materiale università/` funziona senza conversioni: l'ho usato. `[M]`
 - Nella versione QGIS il SVF va prodotto da un preprocessore separato e passato come **zip**; nel pacchetto nuovo `SurfaceData.prepare()` calcola pareti + SVF e li mette in cache su disco con un fingerprint (run "caldi" in ~50 ms). `[P]` — UMEP docs § Spatial data; `docs/getting-started/quick-start.md`
@@ -186,7 +186,7 @@ La combinazione in Python è:
 shadow = bldg_sh − (1 − veg_sh) × (1 − transmissivity)
 ```
 
-> `[I]` La semplificazione è **coerente con l'ambito già deciso per CLIMESH**. Quello che il LAD compra in più è il raffrescamento evaporativo, cioè un effetto sulla **temperatura dell'aria** — la grandezza che il ticket #1 ha esplicitamente messo fuori (perché le differenze fra scenari, 0,21 °C d'estate, stanno dentro la barra d'errore di ENVI-met). Ai fini della Tmrt, quello che conta della vegetazione è **dove cade l'ombra**, e quello SOLWEIG lo fa con geometria esatta.
+> `[I]` La semplificazione è **coerente con l'ambito già deciso per OMBRA**. Quello che il LAD compra in più è il raffrescamento evaporativo, cioè un effetto sulla **temperatura dell'aria** — la grandezza che il ticket #1 ha esplicitamente messo fuori (perché le differenze fra scenari, 0,21 °C d'estate, stanno dentro la barra d'errore di ENVI-met). Ai fini della Tmrt, quello che conta della vegetazione è **dove cade l'ombra**, e quello SOLWEIG lo fa con geometria esatta.
 > `[I]` Il costo reale della semplificazione, per il caso Bastia, è che le 5 specie distinte (pino, platano, tiglio, pioppo bianco, betulla — 616 istanze) diventano una sola trasmissività e una sola coppia altezza/rapporto-tronco per pianta. Se serve differenziare, il modello lo permette solo variando CDSM/TDSM pixel per pixel, non la trasmissività, che nel pacchetto è **uno scalare per run**.
 
 ---
@@ -197,7 +197,7 @@ shadow = bldg_sh − (1 − veg_sh) × (1 − transmissivity)
 
 Tutte le misure sotto vengono da:
 
-- **cwd** `/home/mario/climesh-research` (fuori dal repo CLIMESH: nessun file scritto dentro il progetto oltre a questo report).
+- **cwd** `/home/mario/climesh-research` (fuori dal repo OMBRA: nessun file scritto dentro il progetto oltre a questo report).
 - **pacchetto** `solweig` **0.1.0b95** installato da PyPI in `.venv` Python **3.13.15** (`uv pip install solweig`). Clone di riferimento per il codice: `/home/mario/climesh-research/solweig`, HEAD `02246ab71a3a8b127d740dde9640449ee9d558ff` (25/08/2026, tag `v0.1.0b95`).
 - **macchina**: Intel Core i7-12700K (20 thread), 7 GB di RAM visibili alla VM, WSL2 su Linux 6.18.33.2; GPU **NVIDIA GeForce RTX 4060 Ti 8 GB** raggiunta da `wgpu` via backend **Vulkan** (`solweig.get_gpu_limits()` → `{'backend': 'Vulkan', ...}`).
 - **script**: `/home/mario/climesh-research/bench/bastia_bench.py` (caso Bastia), `bench/scaling.py` (scaling), `bench/veg_isolate.py` (isolamento del costo vegetazione). Comandi: `./.venv/bin/python bench/<script>.py`, e `FORCE_CPU=1 ./.venv/bin/python bench/<script>.py` per la variante CPU (che chiama `solweig.disable_gpu()`).
@@ -264,18 +264,18 @@ Il ticket #1 definisce il caso completo come **2 scenari × 2 giorni da 48 h**. 
 - `UMEP`, `UMEP-processing`, `umep-solweig`: GPL-3.0 (`umep-solweig` dichiara esplicitamente `GPL-3.0-only`). `[P]`
 - `umep-core`: **incoerente** — LICENSE e README dicono GPL-3.0, `pyproject.toml` e PyPI dicono AGPL-3.0. Repo archiviato; irrilevante se non lo si usa. `[P]`
 
-### 6.2 Cosa comporta per CLIMESH
+### 6.2 Cosa comporta per OMBRA
 
-CLIMESH ha già deciso GPL-3 o AGPL-3 (ticket #1). Questo elimina il problema alla radice: **il copyleft di SOLWEIG non vincola nulla che CLIMESH non si sia già imposto da solo.**
+OMBRA ha già deciso GPL-3 o AGPL-3 (ticket #1). Questo elimina il problema alla radice: **il copyleft di SOLWEIG non vincola nulla che OMBRA non si sia già imposto da solo.**
 
-- CLIMESH sotto **GPL-3**: combinazione diretta ammessa, nessuna condizione aggiuntiva oltre a mantenere le note di copyright e distribuire il sorgente.
-- CLIMESH sotto **AGPL-3**: ammesso esplicitamente dalla **§ 13 della GPLv3** — *"Notwithstanding any other provision of this License, you have permission to link or combine any covered work with a work licensed under version 3 of the GNU Affero General Public License into a single combined work, and to convey the resulting work"*. `[P]` — https://www.gnu.org/licenses/gpl-3.0.txt, riga 552 e segg. Il "GPL-3.0-only" di `umep-solweig` **non** è un ostacolo: la § 13 è dentro la GPLv3 stessa, non è una clausola "or later".
+- OMBRA sotto **GPL-3**: combinazione diretta ammessa, nessuna condizione aggiuntiva oltre a mantenere le note di copyright e distribuire il sorgente.
+- OMBRA sotto **AGPL-3**: ammesso esplicitamente dalla **§ 13 della GPLv3** — *"Notwithstanding any other provision of this License, you have permission to link or combine any covered work with a work licensed under version 3 of the GNU Affero General Public License into a single combined work, and to convey the resulting work"*. `[P]` — https://www.gnu.org/licenses/gpl-3.0.txt, riga 552 e segg. Il "GPL-3.0-only" di `umep-solweig` **non** è un ostacolo: la § 13 è dentro la GPLv3 stessa, non è una clausola "or later".
 
 ### 6.3 Le forme di riuso e cosa costano in termini di licenza
 
 | Forma | Ammessa? | Cosa comporta |
 |---|---|---|
-| **Linking / vendoring del crate Rust dentro CLIMESH** | sì | l'opera combinata è GPL-3 (o AGPL-3 via § 13). Serve preservare copyright e note, e distribuire il sorgente del combinato. |
+| **Linking / vendoring del crate Rust dentro OMBRA** | sì | l'opera combinata è GPL-3 (o AGPL-3 via § 13). Serve preservare copyright e note, e distribuire il sorgente del combinato. |
 | **Dipendenza Python opzionale, invocata come libreria** | sì | stesso regime del linking se distribuita insieme; se è solo una dipendenza di sviluppo/test **non distribuita**, il problema non si pone proprio. |
 | **Processo separato (`fork`/`exec`, pipe, file su disco)** | sì | la FAQ FSF: il criterio dipende "*both on the mechanism of communication (exec, pipes, rpc, function calls within a shared address space, etc.) and the semantics of the communication*"; pipe, socket e argomenti di riga di comando sono "*communication mechanisms normally used between two separate programs*", **salvo** che la semantica sia "intimate enough, exchanging complex internal data structures". `[P]` — https://www.gnu.org/licenses/gpl-faq.html (§ *MereAggregation*, § *GPLPlugins*) |
 | **Riscrittura a partire dai paper** | sì | gli algoritmi pubblicati nei paper di Lindberg et al. non sono coperti dal copyright del codice UMEP. |
@@ -283,7 +283,7 @@ CLIMESH ha già deciso GPL-3 o AGPL-3 (ticket #1). Questo elimina il problema al
 
 > **Non è consulenza legale.** § 6.3 riporta il testo della licenza e la FAQ del titolare della licenza, non un parere.
 
-> `[I]` Nota pratica: dato che CLIMESH è già copyleft per scelta, **le distinzioni fini della § 6.3 non hanno conseguenze operative**. L'unica riga che conta davvero è l'ultima: se si sceglie di reimplementare, conviene sapere che parte di ciò che serve **non sta nei paper** ma solo nel codice e nelle sue spec.
+> `[I]` Nota pratica: dato che OMBRA è già copyleft per scelta, **le distinzioni fini della § 6.3 non hanno conseguenze operative**. L'unica riga che conta davvero è l'ultima: se si sceglie di reimplementare, conviene sapere che parte di ciò che serve **non sta nei paper** ma solo nel codice e nelle sue spec.
 
 ---
 
@@ -293,17 +293,17 @@ CLIMESH ha già deciso GPL-3 o AGPL-3 (ticket #1). Questo elimina il problema al
 
 ### Opzione A — SOLWEIG come oracolo di validazione, non come motore
 
-CLIMESH implementa la propria fisica in Rust; `solweig` (PyPI) resta una **dipendenza di sviluppo** usata in CI per generare i raster di riferimento su cui confrontare l'output di CLIMESH.
+OMBRA implementa la propria fisica in Rust; `solweig` (PyPI) resta una **dipendenza di sviluppo** usata in CI per generare i raster di riferimento su cui confrontare l'output di OMBRA.
 
 - **Pro**: soddisfa il gate di validazione del ticket #1 alla lettera e con zero attrito (wheel su tutte e tre le piattaforme, EPW nativo, headless, 1,7 s per caso); non tocca il binario distribuito, quindi non compromette il "binario Rust singolo"; nessun vincolo di licenza sulla distribuzione perché la dipendenza non viene distribuita.
-- **Contro**: CLIMESH deve comunque scrivere ombre, SVF, GVF, radiazione, Tmrt, UTCI/PET da zero — circa quello che `UMEP-dev/solweig` ha in 17,6 k righe di Rust.
+- **Contro**: OMBRA deve comunque scrivere ombre, SVF, GVF, radiazione, Tmrt, UTCI/PET da zero — circa quello che `UMEP-dev/solweig` ha in 17,6 k righe di Rust.
 
-### Opzione B — vendoring del crate Rust dentro CLIMESH
+### Opzione B — vendoring del crate Rust dentro OMBRA
 
-Copiare `rust/src/` dentro CLIMESH, togliere lo strato PyO3, esporre le funzioni native.
+Copiare `rust/src/` dentro OMBRA, togliere lo strato PyO3, esporre le funzioni native.
 
 - **Fattibilità**: il codice ha già la forma giusta. Le funzioni `#[pyfunction]` sono wrapper sottili che convertono i tipi e delegano a funzioni interne con firme `ndarray` pure — per esempio `calculate_shadows_rust(azimuth_deg: f32, altitude_deg: f32, scale: f32, max_local_dsm_ht: f32, dsm_view: ArrayView2<f32>, …)`, `pub(crate)`, in `rust/src/shadowing.rs:191`. `[P]` L'orchestratore `pipeline.rs` (2021 righe) tocca tipi Python in sole 62 righe. `[M]` (`grep -c "Py\|py\." pipeline.rs`)
-- **Lavoro richiesto**: `[I]` cambiare `crate-type` da `cdylib` a `rlib`, rendere pubbliche le funzioni interne, sostituire i `pyclass` bundle (`SvfBundle`, `StateBundle`, `SurfaceBundle`, `PropertiesBundle`, ~336 righe in `pipeline_bundles.rs`) con struct semplici, e **riscrivere in Rust il layer Python di orchestrazione** (~17,8 k righe: caricamento raster, cache SVF, tiling, accumulatori, export GeoTIFF, EPW). Quest'ultimo è il pezzo grosso, ma è anche il pezzo che CLIMESH dovrebbe scrivere comunque.
+- **Lavoro richiesto**: `[I]` cambiare `crate-type` da `cdylib` a `rlib`, rendere pubbliche le funzioni interne, sostituire i `pyclass` bundle (`SvfBundle`, `StateBundle`, `SurfaceBundle`, `PropertiesBundle`, ~336 righe in `pipeline_bundles.rs`) con struct semplici, e **riscrivere in Rust il layer Python di orchestrazione** (~17,8 k righe: caricamento raster, cache SVF, tiling, accumulatori, export GeoTIFF, EPW). Quest'ultimo è il pezzo grosso, ma è anche il pezzo che OMBRA dovrebbe scrivere comunque.
 - **Pro**: si eredita la fisica validata, gli shader GPU, e — non secondario — i test di parità contro il Python di riferimento.
 - **Contro**: si eredita anche un fork da mantenere allineato a un upstream in beta e a contributore singolo.
 
@@ -341,9 +341,9 @@ Il ticket #1 fissa come gate "il confronto contro SOLWEIG, che è libero e già 
 
 Il documento segnala anche un bias sistematico: **L↓ modellata 18-55 W/m² sopra le osservazioni a tutti i siti**, attribuito "*to the published Ldown formulation rather than to calibration*". `[P]`
 
-> `[I]` Conseguenze per il gate. (1) "Concordare con SOLWEIG" e "essere giusto" non sono la stessa cosa: SOLWEIG sbaglia la Tmrt di 2,4-7,3 °C RMSE contro misure. (2) Un gate sul **Tmrt finale** con tolleranza dell'ordine di 1 °C sarebbe più stretto dell'accordo di SOLWEIG con la realtà, e finirebbe per misurare la fedeltà alle scelte implementative altrui. (3) Il gate più informativo è **per componente**: ombra binaria (confronto esatto contro posizione solare analitica, come già previsto), SVF, poi K↓/K↑/L↓/L↑ separatamente, come fa la validazione di Kronenhuset. (4) Se CLIMESH riproduce anche il bias di +18-55 W/m² su L↓, avrà riprodotto un errore noto, non validato un modello.
+> `[I]` Conseguenze per il gate. (1) "Concordare con SOLWEIG" e "essere giusto" non sono la stessa cosa: SOLWEIG sbaglia la Tmrt di 2,4-7,3 °C RMSE contro misure. (2) Un gate sul **Tmrt finale** con tolleranza dell'ordine di 1 °C sarebbe più stretto dell'accordo di SOLWEIG con la realtà, e finirebbe per misurare la fedeltà alle scelte implementative altrui. (3) Il gate più informativo è **per componente**: ombra binaria (confronto esatto contro posizione solare analitica, come già previsto), SVF, poi K↓/K↑/L↓/L↑ separatamente, come fa la validazione di Kronenhuset. (4) Se OMBRA riproduce anche il bias di +18-55 W/m² su L↓, avrà riprodotto un errore noto, non validato un modello.
 
-Un aspetto pratico a favore: la validazione di `UMEP-dev/solweig` è **self-contained e gira in CI** — DSM, DEM, CDSM, land cover, met file, POI in GeoJSON stanno dentro `tests/validation/` del repo, sotto GPL-3. `[P]` Sono 7 giorni di misure radiative reali a Göteborg, direttamente riusabili come dataset di validazione per CLIMESH. Questo copre parzialmente la voce "Validazione contro misure di campo reali" che il ticket #1 elenca fra le cose non ancora specificate.
+Un aspetto pratico a favore: la validazione di `UMEP-dev/solweig` è **self-contained e gira in CI** — DSM, DEM, CDSM, land cover, met file, POI in GeoJSON stanno dentro `tests/validation/` del repo, sotto GPL-3. `[P]` Sono 7 giorni di misure radiative reali a Göteborg, direttamente riusabili come dataset di validazione per OMBRA. Questo copre parzialmente la voce "Validazione contro misure di campo reali" che il ticket #1 elenca fra le cose non ancora specificate.
 
 ---
 
@@ -401,7 +401,7 @@ Un aspetto pratico a favore: la validazione di `UMEP-dev/solweig` è **self-cont
 **Interne al progetto**
 - `research/envi-met.md` §§ 2.4, 2.5, 2.6 (per il confronto LAD / IVS)
 - `materiale università/LAB1.INX`, `materiale università/ITA_Perugia.161810_IGDG.epw`
-- Ticket [#1](https://github.com/maeurong/CLIMESH/issues/1) (mappa: budget, gate, ambito), [#2](https://github.com/maeurong/CLIMESH/issues/2)
+- Ticket [#1](https://github.com/maeurong/OMBRA/issues/1) (mappa: budget, gate, ambito), [#2](https://github.com/maeurong/OMBRA/issues/2)
 
 ---
 

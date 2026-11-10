@@ -3,7 +3,7 @@
 **Scopo**: dossier preliminare richiesto da `docs/superpowers/plans/2026-08-31-nucleo-di-calcolo-dispatch.md` § 4, da consumare nei Task 3, 4a e 4b del piano `2026-08-31-nucleo-di-calcolo.md`.
 
 **Data ricerca**: 2026-08-31.
-**Repo CLIMESH**: branch `main`, HEAD `d7561cb` (`Cargo.toml` con `[dependencies]` vuota, nessuna dipendenza ancora entrata).
+**Repo OMBRA**: branch `main`, HEAD `d7561cb` (`Cargo.toml` con `[dependencies]` vuota, nessuna dipendenza ancora entrata).
 **Motore letto**: `UMEP-dev/solweig`, clone `--depth 1` di `main`, HEAD `02246ab71a3a8b127d740dde9640449ee9d558ff` (25/08/2026 15:21:29 UTC). Questo commit è **un solo commit avanti** rispetto al tag `v0.1.0b95` = `d3dfb2a1d0a7b284b4a530e8439f1966a917361e`, e l'unico file che cambia fra i due è `uv.lock` (verificato via `GET /repos/UMEP-dev/solweig/compare/d3dfb2a...02246ab` → `ahead_by: 1`, `files: [uv.lock]`). **Tutte le righe di `rust/src/` citate qui sono quindi identiche nel tag e in `main`**, e i permalink puntano al tag.
 
 **Convenzione di marcatura** (la stessa di `research/solweig-riuso.md`)
@@ -90,7 +90,7 @@ pub(crate) struct ShadowingResultRust {
 }
 ```
 
-Il campo che serve a CLIMESH è **`bldg_sh`**. I campi sono `pub` dentro una struct `pub(crate)`: basta cambiare la visibilità della struct, non quella dei campi.
+Il campo che serve a OMBRA è **`bldg_sh`**. I campi sono `pub` dentro una struct `pub(crate)`: basta cambiare la visibilità della struct, non quella dei campi.
 
 ### Polarità di `bldg_sh`: 1 = al sole, 0 = in ombra
 
@@ -257,7 +257,7 @@ La guida ufficiale PyO3 v0.24.2 dice, testualmente `[P]` — [pyo3.rs/v0.24.2/bu
 
 > PyO3's `extension-module` feature is used to disable linking to `libpython` on Unix targets. […] The downside of not linking to `libpython` is that binaries, tests, and examples (which usually embed Python) will fail to build. **If you have an extension module as well as other outputs in a single project, you need to use optional Cargo features to disable the `extension-module` when you're not building the extension module.**
 
-> `[I]` **Non ho verificato compilando.** L'inferenza è: un `rlib` con `extension-module` attiva, linkato dentro il binario CLIMESH, lascia i simboli della C API di Python non risolti, e il link del binario fallisce se anche una sola unità di codegen di `rustalgos` che li referenzia viene ritenuta (in particolare l'inizializzatore `PyInit_rustalgos` generato da `#[pymodule]`). Non so dire senza provarlo se il linker li scarti come codice morto. **È la singola incognita che decide se Task 4b regge**, ed è verificabile in dieci minuti: clonare, mettere `crate-type = ["cdylib","rlib"]`, un `pub mod shadowing;`, e provare a linkarlo da un `main.rs` di tre righe.
+> `[I]` **Non ho verificato compilando.** L'inferenza è: un `rlib` con `extension-module` attiva, linkato dentro il binario OMBRA, lascia i simboli della C API di Python non risolti, e il link del binario fallisce se anche una sola unità di codegen di `rustalgos` che li referenzia viene ritenuta (in particolare l'inizializzatore `PyInit_rustalgos` generato da `#[pymodule]`). Non so dire senza provarlo se il linker li scarti come codice morto. **È la singola incognita che decide se Task 4b regge**, ed è verificabile in dieci minuti: clonare, mettere `crate-type = ["cdylib","rlib"]`, un `pub mod shadowing;`, e provare a linkarlo da un `main.rs` di tre righe.
 >
 > La forma della richiesta a monte che risolve il problema alla radice, e che è anche quella che la guida PyO3 raccomanda:
 > ```toml
@@ -273,7 +273,7 @@ La guida ufficiale PyO3 v0.24.2 dice, testualmente `[P]` — [pyo3.rs/v0.24.2/bu
 
 ### 5.5 Un dettaglio minore
 
-`rust/Cargo.toml:28-33` dichiara `[profile.release]` con `panic = "abort"`, `lto = "fat"`, `codegen-units = 1`, `strip = "symbols"`. `[P]` Cargo ignora i profili delle dipendenze e usa solo quello del pacchetto radice, quindi questa sezione non ci arriva addosso; ma se CLIMESH volesse le stesse ottimizzazioni dovrebbe dichiararle nel proprio `Cargo.toml`. `[I]`
+`rust/Cargo.toml:28-33` dichiara `[profile.release]` con `panic = "abort"`, `lto = "fat"`, `codegen-units = 1`, `strip = "symbols"`. `[P]` Cargo ignora i profili delle dipendenze e usa solo quello del pacchetto radice, quindi questa sezione non ci arriva addosso; ma se OMBRA volesse le stesse ottimizzazioni dovrebbe dichiararle nel proprio `Cargo.toml`. `[I]`
 
 ---
 
@@ -349,4 +349,4 @@ Elenco esplicito, perché il Task 4b si rompe proprio qui.
 1. **Che il crate linki dentro un binario Rust con `extension-module` attiva.** `[I]` — § 5.4. È il rischio numero uno e si chiude con una compilazione di prova. Non l'ho fatta perché il mandato di questa ricerca è di sola lettura e vieta esplicitamente di clonare per modificare.
 2. **Che il test dell'ombra a nord passi senza conversione di azimut.** `[I]` — § 2. La derivazione dal codice è netta, ma resta una lettura di codice, non un'esecuzione.
 3. **Se `cargo build` del Motore richieda un interprete Python nell'ambiente.** `[I]` — documentato da PyO3 come comportamento di default di `pyo3-build-config`, ma non provato sulla nostra macchina né in CI.
-4. **Se la feature `gpu` (attiva di default, tira `wgpu 27.0`) vada disattivata da noi.** Non l'ho valutata. Se la si tiene, l'albero di dipendenze di CLIMESH cresce di parecchio e smette di essere "Rust puro senza librerie native"; se la si toglie con `default-features = false`, si perde l'accelerazione che il rapporto `solweig-riuso.md` § 5 misurava a 1,7 s contro 36,4 s. **È una decisione, non un dato, e non è mia.**
+4. **Se la feature `gpu` (attiva di default, tira `wgpu 27.0`) vada disattivata da noi.** Non l'ho valutata. Se la si tiene, l'albero di dipendenze di OMBRA cresce di parecchio e smette di essere "Rust puro senza librerie native"; se la si toglie con `default-features = false`, si perde l'accelerazione che il rapporto `solweig-riuso.md` § 5 misurava a 1,7 s contro 36,4 s. **È una decisione, non un dato, e non è mia.**

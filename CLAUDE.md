@@ -1,13 +1,15 @@
 # CLAUDE.md
 
-CLIMESH calcola il comfort termico all'aperto in uno spazio urbano, in modo
+OMBRA calcola il comfort termico all'aperto in uno spazio urbano, in modo
 riproducibile e citabile. Alternativa libera a ENVI-met.
 
 ## Dove stanno le decisioni
 
-**Le decisioni di progetto non sono nel codice.** Vivono nella mappa wayfinder,
-issue **#1** di `maeurong/CLIMESH`, con i ticket come sub-issue. Prima di
-rispondere a una domanda di progetto, leggila: `gh issue view 1`. La risposta a
+**Le decisioni di progetto non sono nel codice.** Vivono nelle mappe wayfinder
+di `maeurong/OMBRA`, con i ticket come sub-issue: la **#1** per il nucleo
+(chiusa), la **#29** per la catena radiativa fino a Tmrt e UTCI (aperta). Prima di
+rispondere a una domanda di progetto, leggi quella pertinente: `gh issue view 1`,
+`gh issue view 29`. La risposta a
 un ticket chiuso sta nel suo commento di risoluzione, non nella mappa, che ne
 tiene solo il sunto.
 
@@ -54,7 +56,7 @@ terminale vero — un prompt di password non compare dentro un agente.
 
 **Il codice vendorato non si formatta e non si corregge.** `vendor/solweig/` è
 codice di altri: `cargo fmt --all` ci entra dentro seguendo la dipendenza di
-percorso, quindi si usa `cargo fmt -p climesh`. Riformattarlo o correggerne gli
+percorso, quindi si usa `cargo fmt -p ombra`. Riformattarlo o correggerne gli
 avvisi renderebbe irriconciliabile il prossimo aggiornamento, e l'unica modifica
 ammessa è quella dichiarata in `vendor/solweig/PROVENIENZA.toml`.
 
@@ -110,8 +112,9 @@ repository in nessuna forma.
 
 ## Convenzioni
 
-Codice, commenti, messaggi di commit e testi di issue in **inglese**.
-Documentazione, file di dati e discussione in **italiano**.
+Codice, commenti e messaggi di commit in **inglese**.
+Documentazione, file di dati, testi di issue e discussione in **italiano**: la
+mappa wayfinder e i suoi ticket sono discussione, e così sono sempre stati scritti.
 
 Test prima dell'implementazione. Un test che fallisce se la logica si rompe,
 niente framework e niente fixture elaborate. Enumera i casi degeneri prima di

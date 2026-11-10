@@ -1,4 +1,4 @@
-# CLIMESH
+# OMBRA
 
 Calcola il comfort termico all'aperto in uno spazio urbano — dove cade l'ombra,
 quanta radiazione riceve una persona, quanto caldo sente — in modo riproducibile
@@ -18,7 +18,7 @@ pubblici.
 
 Ma il motivo per cui il progetto esiste è un altro, ed è più scomodo.
 
-La relazione di laboratorio da cui nasce CLIMESH concludeva che un intervento di
+La relazione di laboratorio da cui nasce OMBRA concludeva che un intervento di
 mitigazione funzionava, sulla base di una differenza di temperatura dell'aria di
 **0,21 °C** fra i due scenari. L'errore validato di ENVI-met su quella stessa
 grandezza è di **1,34 °C** di errore medio assoluto: la conclusione stava per
@@ -29,7 +29,7 @@ ombra vale fra 20 e 35 °C, contro un errore del modello di 2,4-7,3 °C. Da tre 
 dieci volte il rumore, e per giunta è la grandezza che descrive cosa sente
 davvero una persona ferma lì.
 
-CLIMESH misura quella. E dichiara, oggetto per oggetto, quanto di ciò che mostra
+OMBRA misura quella. E dichiara, oggetto per oggetto, quanto di ciò che mostra
 è stato rilevato e quanto stimato.
 
 ## Dove guardare
@@ -43,7 +43,7 @@ CLIMESH misura quella. E dichiara, oggetto per oggetto, quanto di ciò che mostr
 - **[`research/`](research/)** — i sei rapporti che hanno istruito le decisioni:
   come funziona ENVI-met, cosa offre il panorama libero, quanto costa davvero il
   calcolo, quale indice di comfort ha senso.
-- **[Mappa del progetto](https://github.com/maeurong/CLIMESH/issues/1)** — ogni
+- **[Mappa del progetto](https://github.com/maeurong/OMBRA/issues/1)** — ogni
   decisione presa, con la sua motivazione, sotto forma di issue chiuse.
 
 ## Stato
@@ -81,9 +81,9 @@ ridistribuibile; i numeri che ne discendono sono qui.
 ## Uso
 
 ```bash
-climesh costruisci modello.INX progetto/   # un Progetto da un file .INX
-climesh esegui progetto/                   # tutte le Corse
-climesh interroga progetto/corse/…/giornale.toml
+ombra costruisci modello.INX progetto/   # un Progetto da un file .INX
+ombra esegui progetto/                   # tutte le Corse
+ombra interroga progetto/corse/…/giornale.toml
 ```
 
 `--lingua it` o `--lingua en`; senza, la decide l'ambiente. Il codice di uscita
@@ -105,10 +105,10 @@ CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=rust-lld \
 
 ## Licenza
 
-GPL-3. Non è solo una scelta etica: è la promessa credibile che a CLIMESH non
+GPL-3. Non è solo una scelta etica: è la promessa credibile che a OMBRA non
 accadrà mai ciò che è appena accaduto a ENVI-met.
 
 Il nucleo radiativo è riusato da [`UMEP-dev/solweig`](https://github.com/UMEP-dev/solweig),
 anch'esso GPL-3, e riscriverlo sarebbe stato uno spreco: la fisica è già scritta,
 validata contro misure di campo e citata in letteratura. Quello che mancava, e
-che CLIMESH costruisce, è tutto il resto.
+che OMBRA costruisce, è tutto il resto.

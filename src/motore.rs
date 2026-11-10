@@ -92,7 +92,7 @@ pub fn ombre(
     // The kernel treats vegetation as present only when canopy, trunk zone *and*
     // bushes are all there: with one of the three missing it computes a canopy
     // shadow and then skips the pass that normalises it, and the array that
-    // comes back means something else. CLIMESH has no Cespuglio in its
+    // comes back means something else. OMBRA has no Cespuglio in its
     // vocabulary, so the third raster is zeros — the kernel calls a bush a bush
     // above one metre, and zero is below it everywhere.
     let cespugli: Raster = Array2::zeros(modello_di_superficie.dim());

@@ -1,7 +1,7 @@
 # Il nucleo radiativo si vendora, non si dipende
 
-CLIMESH riusa il nucleo radiativo di [`UMEP-dev/solweig`](https://github.com/UMEP-dev/solweig),
-GPL-3. La [risoluzione del ticket sul motore](https://github.com/maeurong/CLIMESH/issues/9)
+OMBRA riusa il nucleo radiativo di [`UMEP-dev/solweig`](https://github.com/UMEP-dev/solweig),
+GPL-3. La [risoluzione del ticket sul motore](https://github.com/maeurong/OMBRA/issues/9)
 prevedeva di consumarlo come **dipendenza git pinnata a un tag**, dopo una richiesta a monte
 che ne esponesse un'API Rust nativa, tenendo il vendoring come ripiego.
 
@@ -41,7 +41,7 @@ perché il Giornale cita per versione la validazione del nucleo, e cambiarlo cam
 citazione afferma. I nomi delle chiavi di `PROVENIENZA.toml` sono un contratto con quel lavoro.
 
 **Licenza.** GPL-3 da entrambe le parti, quindi la combinazione è ammessa senza condizioni oltre
-al mantenere le note di copyright e distribuire il sorgente. Se CLIMESH finisse sotto AGPL-3, la
+al mantenere le note di copyright e distribuire il sorgente. Se OMBRA finisse sotto AGPL-3, la
 § 13 della GPLv3 lo permette esplicitamente.
 
 **Il ripiego è deciso e non si improvvisa.** Se il sorgente vendorato non compilasse comunque, si

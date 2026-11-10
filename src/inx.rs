@@ -1,15 +1,15 @@
 //! Minimal reader for ENVI-met `.INX` area input files.
 //!
-//! The format is documented, as far as CLIMESH needs it, in `docs/formato-inx.md`.
+//! The format is documented, as far as OMBRA needs it, in `docs/formato-inx.md`.
 //! The reader looks tags up by name over the whole text instead of walking a tree:
 //! `.INX` is not well-formed XML (`<3Dplants>` is not a legal XML name) and every
-//! tag CLIMESH reads is unique in the file, so the hierarchy carries no information
+//! tag OMBRA reads is unique in the file, so the hierarchy carries no information
 //! a strict parser would give back.
 
 use std::fmt;
 use std::path::Path;
 
-/// The parts of an `.INX` file CLIMESH reads.
+/// The parts of an `.INX` file OMBRA reads.
 ///
 /// Every raster is optional: a section that is not in the file is `None`, which is
 /// not the same thing as a section full of zeros or of empty cells.
@@ -167,7 +167,7 @@ impl fmt::Display for InxError {
             }
             InxError::Encrypted { level } => write!(
                 f,
-                "the file declares encryption level {level}: CLIMESH only reads plain text INX files"
+                "the file declares encryption level {level}: OMBRA only reads plain text INX files"
             ),
             InxError::MissingTag(tag) => write!(f, "missing required tag <{tag}>"),
             InxError::UnclosedTag(tag) => write!(f, "missing closing tag </{tag}>"),
@@ -207,7 +207,7 @@ impl std::error::Error for InxError {
 }
 
 /// Reads an `.INX` file from disk. Bytes that are not valid UTF-8 are replaced
-/// rather than refused: the files come from a program CLIMESH does not control.
+/// rather than refused: the files come from a program OMBRA does not control.
 pub fn read_inx(path: impl AsRef<Path>) -> Result<Inx, InxError> {
     let path = path.as_ref();
     let bytes = std::fs::read(path).map_err(|source| InxError::Io {

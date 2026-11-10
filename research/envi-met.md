@@ -1,7 +1,7 @@
 # ENVI-met — ricognizione tecnica completa
 
-**Scopo**: quadro di riferimento per progettare un sostituto/alternativa open source (progetto CLIMESH).
-**Data ricerca**: 2026-08-31. **Repo**: CLIMESH, branch `main`, HEAD `7f23d42` (repo vuoto: solo `README.md` con `# CLIMESH`).
+**Scopo**: quadro di riferimento per progettare un sostituto/alternativa open source (progetto OMBRA).
+**Data ricerca**: 2026-08-31. **Repo**: OMBRA, branch `main`, HEAD `7f23d42` (repo vuoto: solo `README.md` con `# OMBRA`).
 **Versione ENVI-met di riferimento**: V5.9.0, rilasciata il 5 dicembre 2025.
 
 **Convenzione di marcatura**
@@ -344,7 +344,7 @@ Senza parametri apre un dialogo per workspace/progetto/SIMX. L'output a terminal
 - `Natasja1992/ifc-citygml-2-envi` — IFC e CityGML → INX (2021, fermo).
 - `aetherrootr/envi-met-converter` — CLI Go per convertire export (2024).
 
-> `[I]` Nota importante per CLIMESH: la maggior parte di questi progetti è **micro-scala e semi-abbandonata** (0–5 star, ultimo commit anni fa). L'unico con massa critica è VoxCity, che però tratta ENVI-met come *un* target di export fra tanti, non come oggetto da sostituire.
+> `[I]` Nota importante per OMBRA: la maggior parte di questi progetti è **micro-scala e semi-abbandonata** (0–5 star, ultimo commit anni fa). L'unico con massa critica è VoxCity, che però tratta ENVI-met come *un* target di export fra tanti, non come oggetto da sostituire.
 
 ### 3.8 Hardware e tempi di simulazione
 

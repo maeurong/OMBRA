@@ -25,14 +25,14 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # `-p climesh` e non `--all`: --all segue la dipendenza di percorso ed entra
+      # `-p ombra` e non `--all`: --all segue la dipendenza di percorso ed entra
       # in vendor/solweig, che e' codice di altri e non e' nostro da formattare.
       # Riformattarlo renderebbe irriconciliabile il prossimo aggiornamento.
       - name: Formatting
-        run: cargo fmt -p climesh --check
+        run: cargo fmt -p ombra --check
 
       - name: Lint
-        run: cargo clippy -p climesh --all-targets --all-features -- -D warnings
+        run: cargo clippy -p ombra --all-targets --all-features -- -D warnings
 
       # The reference case lives in `materiale università/`, which is not
       # redistributable and therefore not in the repository. The handful of tests
@@ -40,7 +40,7 @@ jobs:
       # here — never as passed. Everything else, the synthetic models included,
       # runs for real.
       - name: Tests
-        run: cargo test -p climesh --all-features -- --nocapture
+        run: cargo test -p ombra --all-features -- --nocapture
 
       # Where the material is on disk — a developer machine, not this runner —
       # the same suite runs the ignored checks too:

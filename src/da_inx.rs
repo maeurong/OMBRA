@@ -34,10 +34,10 @@ impl fmt::Display for DaInxError {
         match self {
             Self::PassoNonUniforme { dx, dy } => write!(
                 f,
-                "il file ha dx = {dx} e dy = {dy}: la Griglia di CLIMESH ha un passo solo, \
+                "il file ha dx = {dx} e dy = {dy}: la Griglia di OMBRA ha un passo solo, \
                  e assumere l'uno per l'altro sposterebbe ogni oggetto del modello. \
                  riesporta il modello da ENVI-met con dx uguale a dy: quale dei due \
-                 passi tenere è una scelta del modello, non di CLIMESH"
+                 passi tenere è una scelta del modello, non di OMBRA"
             ),
             Self::AlberoFuoriGriglia { indice, i, j, nx, ny } => write!(
                 f,

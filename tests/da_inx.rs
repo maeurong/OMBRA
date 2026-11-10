@@ -1,7 +1,7 @@
 //! From an `.INX` to a Progetto: the species table, the conversion, and the
 //! generator of the reference case. Degenerate inputs first.
 
-use climesh::specie;
+use ombra::specie;
 
 #[test]
 fn la_tabella_delle_specie_copre_le_cinque_del_caso() {
@@ -68,9 +68,9 @@ fn una_specie_sconosciuta_prende_i_valori_predefiniti_e_non_e_decidua() {
 
 // --- Dal file al Progetto -------------------------------------------------
 
-use climesh::da_inx::{self, progetto_da_inx};
-use climesh::dominio::*;
-use climesh::inx::parse_inx;
+use ombra::da_inx::{self, progetto_da_inx};
+use ombra::dominio::*;
+use ombra::inx::parse_inx;
 
 /// Wraps a body in the smallest header a valid `.INX` file has. The grid is
 /// deliberately neither square nor 50x50, and the step is not one metre.
@@ -436,7 +436,7 @@ fn la_provenienza_ripetuta_non_finisce_in_ogni_albero_del_file() {
     let p = converti(&format!("{EDIFICI}\n{PINO}"));
     let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("provenienza-scenario");
     let _ = std::fs::remove_dir_all(&dir);
-    climesh::progetto::scrivi(&dir, &p).unwrap();
+    ombra::progetto::scrivi(&dir, &p).unwrap();
     let testo = std::fs::read_to_string(dir.join("scenari/stato-di-fatto.toml")).unwrap();
     assert_eq!(
         testo.matches("[alberi.provenienza]").count(),
@@ -451,7 +451,7 @@ fn la_frazione_di_tronco_si_scrive_come_e_stata_dichiarata() {
     let p = converti(PINO);
     let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("frazione-tronco");
     let _ = std::fs::remove_dir_all(&dir);
-    climesh::progetto::scrivi(&dir, &p).unwrap();
+    ombra::progetto::scrivi(&dir, &p).unwrap();
     let testo = std::fs::read_to_string(dir.join("scenari/stato-di-fatto.toml")).unwrap();
     assert!(
         testo.contains("frazione_tronco = 0.45"),
@@ -464,7 +464,7 @@ fn un_terreno_uniforme_non_costa_un_numero_per_cella() {
     let p = converti(EDIFICI);
     let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("terreno-uniforme");
     let _ = std::fs::remove_dir_all(&dir);
-    climesh::progetto::scrivi(&dir, &p).unwrap();
+    ombra::progetto::scrivi(&dir, &p).unwrap();
     let testo = std::fs::read_to_string(dir.join("scenari/stato-di-fatto.toml")).unwrap();
     let riga = testo
         .lines()
@@ -474,7 +474,7 @@ fn un_terreno_uniforme_non_costa_un_numero_per_cella() {
         riga.len() < 30,
         "six equal values should not cost six numbers: {riga}"
     );
-    assert_eq!(climesh::progetto::leggi(&dir).unwrap(), p);
+    assert_eq!(ombra::progetto::leggi(&dir).unwrap(), p);
 }
 
 #[test]
@@ -556,8 +556,8 @@ fn il_progetto_convertito_e_accettato_da_progetto_scrivi() {
     let p = converti(&format!("{EDIFICI}\n{PINO}"));
     let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("convertito");
     let _ = std::fs::remove_dir_all(&dir);
-    climesh::progetto::scrivi(&dir, &p).unwrap();
-    assert_eq!(climesh::progetto::leggi(&dir).unwrap(), p);
+    ombra::progetto::scrivi(&dir, &p).unwrap();
+    assert_eq!(ombra::progetto::leggi(&dir).unwrap(), p);
 }
 
 // --- Il generatore del caso di riferimento --------------------------------
@@ -711,7 +711,7 @@ fn caso_sintetico(nome: &str) -> (PathBuf, Progetto) {
         "{}",
         String::from_utf8_lossy(&esito.stderr)
     );
-    let p = climesh::progetto::leggi(&uscita).unwrap();
+    let p = ombra::progetto::leggi(&uscita).unwrap();
     (uscita, p)
 }
 
@@ -955,7 +955,7 @@ fn uno_scenario_rinominato_non_lascia_orfani() {
         rimasti.iter().any(|p| p.ends_with("corse/estate.toml")),
         "the Corse are not the generator's to remove: {rimasti:?}"
     );
-    assert_eq!(climesh::progetto::leggi(&uscita).unwrap().scenari.len(), 2);
+    assert_eq!(ombra::progetto::leggi(&uscita).unwrap().scenari.len(), 2);
 }
 
 #[test]
@@ -1015,7 +1015,7 @@ fn il_modello_del_corso_da_tre_edifici_seicentosedici_alberi_e_l_erba_dove_sta()
         "{}",
         String::from_utf8_lossy(&esito.stderr)
     );
-    let p = climesh::progetto::leggi(&dir).unwrap();
+    let p = ombra::progetto::leggi(&dir).unwrap();
     let fatto = p.scenari.iter().find(|s| s.derivato_da.is_none()).unwrap();
 
     // Two duplexes at six metres and one simplex at three, as the report has it:
