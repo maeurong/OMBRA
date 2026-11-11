@@ -167,3 +167,64 @@ rimisurato e cosa no sta in `vendor/solweig/PROVENIENZA.toml`, alla voce
 
 L'implementazione di riferimento che il pacchetto segue è ora
 [UMEP-dev/umep-solweig](https://github.com/UMEP-dev/umep-solweig).
+
+## Aggiornamento, 2026-11-11: la porta nativa è in un tag, e questo ADR si chiude
+
+A monte hanno chiuso la [richiesta](https://github.com/UMEP-dev/solweig/issues/14) come
+completata, con la 0.1.0b99 (commit `92c7b8f`). Dei quattro punti ne sono arrivati tre.
+
+**Il passo fuso ha un nome.** Al pin, che dall'11 novembre è 0.1.0b101
+(`41840b74cd7c003f88dbde0c30fff736cb51bd5d`), la funzione è questa, in
+`rust/src/pipeline.rs:571`:
+
+```rust
+pub fn compute_timestep_rust(inputs: &TimestepInputs) -> Result<TimestepResultRaw, String>
+```
+
+Controlla gli ingressi e chiama `timestep_physics`, definita a `:576`, dove sta la fisica che
+prima era nella chiusura. `TimestepInputs` e le struct che contiene, in `pipeline_inputs.rs`, hanno
+campi `pub` e viste `ndarray`: nessun tipo numpy.
+
+**C'è un modulo pubblico, `api`**, che riesporta ciò che OMBRA chiama e ciò che serve al
+passo. Gli altri moduli restano privati. A monte dichiarano che un cambio a ciò che `api`
+riesporta sarà trattato come incompatibile e scritto nelle note di release. E
+`rust/Cargo.toml` dichiara `crate-type = ["cdylib", "rlib"]`.
+
+**Il quarto punto non è in programma.** `pyo3` resta nell'albero delle dipendenze:
+`calculate_svf_inner` restituisce ancora `PyResult`, le tre struct di scalari sono
+`#[pyclass]`, e `pyo3` è compilato con `extension-module`. A monte lo scrivono nella
+risposta: un binario che si lega al crate non trova i simboli di Python.
+
+**Quindi si continua a vendorare, e la scelta si rimotiva, come questo ADR chiedeva.**
+[ADR 0002](0002-vendoring-del-motore.md) contava tre ostacoli: il tipo di crate, i moduli
+privati, `extension-module`. I primi due sono caduti. Il terzo resta e basta da solo: con
+`extension-module` un binario non si lega, e senza la feature si legherebbe a `libpython`,
+mentre il binario singolo senza dipendenze native è un vincolo di progetto. Mario ha scritto
+a monte, il 10 novembre, che il quarto punto non lo chiede. Dopo ADR 0002 è nata una seconda
+ragione: [ADR 0004](0004-psi-per-cella.md) ha deciso che nella copia `psi` cambierà
+significato, e una dipendenza dal crate quella modifica non la porterebbe.
+
+L'aggiornamento di ADR 0004 che porta la stessa data di questo è stato scritto prima della
+release. Dove dice che la funzione nominata «ancora non esiste», e dove rimanda a quando
+«sarà in un tag», ora la funzione c'è.
+
+**Cambia come si prende il passo.** `estrai.py` lo prenderà da una funzione con un nome, come
+già fa per le ombre e per lo sky view factor. Il ripiego descritto sopra, il taglio di
+`compute_timestep` per marcatori, non serve più e non si costruisce.
+
+**L'estrazione del passo non è ancora scritta**, e la catena resta tronca: OMBRA non calcola
+ancora la temperatura media radiante. Fra i file che `compute_timestep_rust` usa,
+`pipeline_scalars.rs` porta gli attributi di Python sulle struct di scalari e sui loro
+`impl`: 3 `#[pyclass]`, 3 `#[pymethods]`, 3 `#[new]`, 34 `#[pyo3(get, set)]`. Sono ciò che
+l'estrazione dovrà togliere. Quali file entrano nella copia, e con quali regole, si decide
+nella [mappa della catena radiativa](https://github.com/maeurong/OMBRA/issues/29).
+
+**Per il passo, a monte chiedono almeno la 0.1.0b100**, per due ragioni. Una riguarda chi
+chiama: in `HumanScalars.height` va l'altezza del baricentro per la postura, 1,1 m in piedi e
+0,75 m seduti, non la statura. Lo strato Python di monte passava 1,75 m fino alla 0.1.0b99.
+L'altra è una correzione al Rust: con `gvf_cache` l'onda corta riflessa dal suolo e l'onda
+lunga che il suolo emette erano troppo basse vicino al bordo del raster, entro il raggio di
+ricerca, che in piedi è di 22 m. Nel caso di riferimento la Griglia è di 50 × 50 celle a 1 m,
+e quel margine lascia fuori solo le 36 celle centrali, su 2500: è un conto geometrico, non una
+misura. Il pin è alla 0.1.0b101: cosa è stato misurato nel passaggio sta in
+`vendor/solweig/PROVENIENZA.toml`, alla voce `a_quale_presa`.
