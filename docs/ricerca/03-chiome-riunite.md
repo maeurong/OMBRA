@@ -41,7 +41,7 @@ basso, e in `svfbuveg = svf − (1 − svf_veg) · (1 − psi)` (`svf_resolution
 onda lunga e non dà diffusa laterale (`sky.rs:360-376`, `:469-478`). `[V]`
 
 **Chi consuma le matrici legge patch per patch** e si ferma al numero di patch (`sky.rs:17`,
-`pipeline_radiation.rs:397-401`): i bit di riempimento dell'ultimo byte non vengono letti. `[V]`
+`pipeline_radiation.rs:397-401`): nessuno legge i bit di riempimento dell'ultimo byte. `[V]`
 
 ## 2. Come il nucleo scrive matrici e campi
 
@@ -140,15 +140,16 @@ Int, tutte in Sin e in Sov.
 
 ### Tempi
 
-Non cronometrati qui. `vendor/solweig/PROVENIENZA.toml`, voce `tempo_sky_view_factor`, riporta da
+Qui nessuna passata è stata cronometrata. `vendor/solweig/PROVENIENZA.toml`, voce
+`tempo_sky_view_factor`, riporta da
 32 a 63 ms per Corsa sul caso di riferimento, con una passata d'estate e due d'inverno.
 
-## Cosa resta non misurato
+## Che cosa resta da misurare
 
 - **Quanto pesa una sola trasmissività verso il cielo per cella** quando le patch non hanno la
   stessa luminosità (cielo anisotropo) e quando le quattro direzioni non hanno la stessa copertura
-  (isotropo). Il conto patch per patch qui usa i pesi isotropi. Il modello di Perez non è nella
-  copia vendorata. `[NON MISURATO]`
+  (isotropo). Il conto patch per patch qui usa i pesi isotropi. La copia vendorata è priva del
+  modello di Perez. `[NON MISURATO]`
 - **L'inviluppo quando le due chiome della stessa cella stanno una sopra l'altra con un vuoto in
   mezzo.** In Sov si toccavano. `[NON MISURATO]`
 - **`veg_blocks_bldg_sh_matrix` sotto l'inviluppo**, e in generale su una Griglia in cui entrambi
@@ -161,5 +162,5 @@ Non cronometrati qui. `vendor/solweig/PROVENIENZA.toml`, voce `tempo_sky_view_fa
 - **La correzione dell'ultimo anello sui direzionali della vegetazione.** Il nucleo la aggiunge a
   `svf_veg_s` e `svf_veg_w` solo dove la zona-tronco vale `0.0`
   (`vendor/solweig/src/skyview.rs:662-675`). OMBRA passa NaN dove non c'è albero
-  (`src/derivazione.rs:124-134`), quindi la correzione non scatta in nessuna cella. `[V]` Che cosa
-  passi monte in quelle celle non è stato letto. Riguarda l'isotropo. `[NON MISURATO]`
+  (`src/derivazione.rs:124-134`), quindi la correzione resta spenta in ogni cella. `[V]` Che cosa
+  passi monte in quelle celle resta da leggere. Riguarda l'isotropo. `[NON MISURATO]`
