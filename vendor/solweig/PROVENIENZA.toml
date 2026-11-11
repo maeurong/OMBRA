@@ -6,9 +6,9 @@
 # controllo senza che nessuno se ne accorga.
 
 upstream = "UMEP-dev/solweig"
-commit = "c31c5758236078b6b5f7bc9a931e2fce264bfc88"
-tag_vicino = "v0.1.0b98"
-data_presa = "2026-11-10"
+commit = "41840b74cd7c003f88dbde0c30fff736cb51bd5d"
+tag_vicino = "v0.1.0b101"
+data_presa = "2026-11-11"
 licenza = "GPL-3.0"
 percorso_sorgente = "rust/src"
 
@@ -70,12 +70,7 @@ dentro il modulo `gpu` di monte.
 """
 
 [modifiche_al_codice_rimasto]
-elementi_esposti = [
-    "calculate_shadows_rust",
-    "ShadowingResultRust",
-    "calculate_svf_inner",
-    "crop_svf_intermediate",
-]
+elementi_esposti = ["crop_svf_intermediate"]
 attributi_tolti = ["utci_single"]
 nota_attributi = """
 `utci_single` porta `#[pyfunction]` ma non e' un involucro: il corpo converte
@@ -91,8 +86,8 @@ quell'elemento sparisce o smette di essere annotato.
 """
 sostituzioni = { "skyview.rs" = { firme = 3, costruzioni_di_errore = 11 } }
 nota_sostituzioni = """
-La classe di trasformazione nuova, e l'unica che cambia una riga invece di
-toglierla: `-> PyResult<T>` diventa `-> Result<T, String>`, e ogni
+La classe di trasformazione nuova, che riscrive una riga invece di toglierla:
+`-> PyResult<T>` diventa `-> Result<T, String>`, e ogni
 `pyo3::exceptions::Py…Error::new_err` diventa `String::from`.
 
 Si sostituisce il **costruttore** e non la costruzione intera. E' una scelta:
@@ -109,23 +104,25 @@ l'annullamento fra un patch e l'altro — e le altre otto sono dentro
 lo stesso, perche' una regola con un ritaglio di regione e' una regola che
 qualcuno dovra' rileggere; e perche' se un giorno la feature si accendesse,
 `pyo3` non ci sarebbe comunque.
-
-`crop_svf_intermediate` non ha oggi nessun chiamante in OMBRA: e' esposto
-perche' tagliarlo sarebbe una modifica al codice rimasto, e questo file dichiara
-che non ce ne sono.
 """
 nota = """
-Una sola classe oltre a quella: quei due elementi di `shadowing.rs` a monte sono `pub(crate)`, e da
-un crate esterno non si vedono. `pub(crate)` significa "visibile dentro il
-crate", quindi un test scritto dentro la copia vendorata li raggiunge e uno
-scritto fuori no — è esattamente l'errore che ci è costato un giro, e la
-lezione è che un'API si prova dal posto da cui verrà usata.
+La promozione di visibilità tocca un solo elemento: `crop_svf_intermediate` di
+`skyview.rs`, che a monte è privato e che l'estrazione promuove a `pub`. Non ha
+oggi nessun chiamante in OMBRA: è esposto perché tagliarlo sarebbe una modifica
+al codice rimasto, e questo file dichiara che non ce ne sono.
 
-È "adattare per far compilare", non "migliorare": senza, la copia non serve a
-niente. La promozione la fa `estrai.py`, non una patch a mano, perché una patch
-si perderebbe alla prossima estrazione senza che nessuno se ne accorga; e lo
-script si ferma con errore se a monte quelle visibilità cambiano, invece di
-promuovere zero elementi e lasciar credere che sia andata bene.
+La promozione la fa `estrai.py`, non una patch a mano, perché una patch si
+perderebbe alla prossima estrazione senza che nessuno se ne accorga; e lo script
+si ferma con errore se a monte quella visibilità cambia, invece di promuovere
+zero elementi e lasciar credere che sia andata bene.
+
+Fino a 0.1.0b98 gli elementi promossi erano quattro. Dalla 0.1.0b99 (commit
+`92c7b8f` di monte) `calculate_shadows_rust`, `ShadowingResultRust` e
+`calculate_svf_inner` sono `pub` alla definizione, per il modulo `api` chiesto
+in https://github.com/UMEP-dev/solweig/issues/14, che la copia non prende. Quei
+tre escono dall'estrazione già `pub`. Al passaggio a 0.1.0b101 lo script si è
+fermato su `shadowing.rs`, «attesi 2 elementi da esporre, promossi 0», ed è lì
+che l'elenco è stato riletto.
 
 Nient'altro è toccato: le righe rimaste sono identiche a quelle di monte,
 intestazioni di licenza e commenti compresi. È la condizione che rende
@@ -150,31 +147,45 @@ orfano e cancella in silenzio l'elemento successivo.
 a_quale_presa = """
 Questa tabella è nata sul commit 02246ab71a3a8b127d740dde9640449ee9d558ff,
 preso il 2026-09-01. Il 2026-11-10 il pin è passato a c31c575, che è
-v0.1.0b98, e da allora le sue voci non valgono tutte allo stesso titolo.
+v0.1.0b98, e il 2026-11-11 a 41840b7, che è v0.1.0b101. Dal primo spostamento
+le sue voci non valgono tutte allo stesso titolo.
 
-Fra i due commit, nei tre file presi, cambia una sola istruzione di
+Fra 02246ab e c31c575, nei tre file presi, cambia una sola istruzione di
 `skyview.rs`, più il commento che la spiega: senza strato di chioma
 `veg_blocks_bldg_sh_matrix` non è più la copia di `bldg_sh_matrix`, è tutta a
 1. `shadowing.rs` e `utci.rs` escono dall'estrazione identici.
 
-Di c31c575: `righe`, che `estrai.py` ristampa a ogni estrazione.
+Fra c31c575 e 41840b7 la copia estratta cambia di una riga: `skyview.rs` perde
+`use core::f32;`. A monte tre elementi diventano `pub`, ma l'estrazione li
+promuoveva già e nella copia non si vede. `shadowing.rs` e `utci.rs` escono
+identici.
 
-Riprovato su c31c575 a ogni `cargo test -p ombra`: che la copia compili e si usi
+Di 41840b7: `righe`, che `estrai.py` ristampa a ogni estrazione.
+
+Riprovato su 41840b7 a ogni `cargo test -p ombra`: che la copia compili e si usi
 da un crate esterno, `utci`, `geometria`, e di `sky_view_factor` il dominio
 piano e la chioma a corona. Che non restino righe di `pyo3` o di `numpy` lo
 controlla `estrai.py`, che altrimenti si ferma.
 
-Rimisurato su c31c575, fuori dai test:
+Misurato su 41840b7, fuori dai test: due binari in release con lo stesso
+`PROVENIENZA.toml`, uno con la copia estratta da c31c575 e uno con quella da
+41840b7, scrivono per le quattro Corse del caso di riferimento Giornali identici
+byte per byte. A manifesto fermo `[motore]` coincide per costruzione: il
+confronto dice dei valori calcolati, cioè i campi, le serie ai Punti di
+osservazione e la verifica dell'ombra. Vale alla precisione con cui il Giornale
+li scrive, quattro decimali, non bit per bit sui raster.
 
-- Il ramo che la correzione tocca. Senza strato di chioma, su tre domini — piano
+Rimisurato su c31c575, fuori dai test, e non rifatto su 41840b7:
+
+- Il ramo che la correzione di c31c575 tocca. Senza strato di chioma, su tre domini — piano
   21x21, torre 21x21, quattordici blocchi su un terreno inclinato 50x50 — i
   quindici campi `svf*` che il nucleo restituisce sono identici bit per bit a
   quelli di 02246ab. Cambia soltanto `veg_blocks_bldg_sh_matrix`, che OMBRA oggi
   non legge. Il giorno che la leggerà, la misura va rifatta su ciò che ne
   dipende.
 - I cinque valori medi di `sky_view_factor` sul caso di riferimento, riportati
-  più sotto: gli stessi, alla quarta cifra decimale. Sulla correzione dicono
-  poco, perché le quattro Corse hanno tutte uno strato di chioma e in quel ramo
+  più sotto: gli stessi, alla quarta cifra decimale. Sulla correzione di c31c575
+  dicono poco, perché le quattro Corse hanno tutte uno strato di chioma e in quel ramo
   non si esegue nessuna istruzione cambiata.
 
 Non rimisurato, vale per costruzione: il 15 per cento del blocco 5x5, che ha una
@@ -183,11 +194,11 @@ quello che c'è chiede soltanto che superi il 5 per cento.
 
 Di 02246ab, non rimisurato: i millisecondi di `tempo` e di
 `tempo_sky_view_factor`. La macchina su cui furono presi non è registrata, e non
-lo è nemmeno quella di oggi: conta solo il confronto fra i due commit sulla
-stessa macchina. Il 2026-11-10, in release, le quattro Corse del caso di
-riferimento completo hanno impiegato circa 0,2 s in tutto, su c31c575 come su
-02246ab. La conclusione di `tempo_sky_view_factor`, che la cache non serve
-ancora, regge.
+lo è nemmeno quella del 2026-11-10: conta solo il confronto fra 02246ab e
+c31c575 sulla stessa macchina. Il 2026-11-10, in release, le quattro Corse del
+caso di riferimento completo hanno impiegato circa 0,2 s in tutto, su c31c575
+come su 02246ab. La conclusione di `tempo_sky_view_factor`, che la cache non
+serve ancora, regge. Su 41840b7 i tempi non sono stati rimisurati.
 """
 compila = """
 Con ndarray 0.16.1 e rayon, zero righe che nominano Python. Rayon si dichiara
@@ -207,7 +218,7 @@ Una chiamata su 50x50 con una torre al centro, in release: 47 ms a freddo, poi
 44, 45 e 11 ms. Il cancello dei 60 secondi chiede quattro Corse da 48 ore, e
 questo numero dice che il collo di bottiglia non sarà qui.
 """
-righe = "shadowing.rs 974 -> 683, utci.rs 366 -> 297, skyview.rs 1104 -> 871"
+righe = "shadowing.rs 974 -> 683, utci.rs 366 -> 297, skyview.rs 1103 -> 870"
 utci = """
 Nell'ambiente di riferimento di UTCI — aria ferma a 0,5 m/s, temperatura media
 radiante uguale a quella dell'aria, pressione di vapore al riferimento — il

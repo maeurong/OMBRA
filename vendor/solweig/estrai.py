@@ -48,22 +48,19 @@ from pathlib import Path
 # I file di monte che OMBRA riusa, e nient'altro.
 FILE = ["shadowing.rs", "utci.rs", "skyview.rs"]
 
-# Elementi che a monte sono privati o `pub(crate)` e che devono diventare
-# `pub`, perche' il crate vendorato viene consumato da fuori. E' "adattare per
-# far compilare": senza, la copia non serve a niente. Va dichiarata in
-# PROVENIENZA.toml, e sta qui perche' una patch fatta a mano si perderebbe alla
-# prossima estrazione senza che nessuno se ne accorga.
+# Elementi che a monte sono privati e che qui diventano `pub`. La promozione va
+# dichiarata in PROVENIENZA.toml, e si fa qui perche' una patch a mano si
+# perderebbe alla prossima estrazione senza che nessuno se ne accorga.
+#
+# `calculate_shadows_rust`, `ShadowingResultRust` e `calculate_svf_inner` a
+# monte sono gia' `pub` e non stanno qui: da quando, lo dice PROVENIENZA.toml.
 DA_ESPORRE = {
-    "shadowing.rs": [
-        "fn calculate_shadows_rust",
-        "struct ShadowingResultRust",
-    ],
+    "shadowing.rs": [],
     "utci.rs": [],
-    # A monte questi due sono privati perche' li chiamavano gli involucri, che
-    # stanno nello stesso file. Tolti quelli, il file non ha piu' nessun
-    # chiamante e senza promozione il modulo non esporrebbe niente.
+    # A monte resta privato: lo chiama soltanto un involucro dello stesso file,
+    # che l'estrazione toglie. Senza promozione il compilatore lo segnalerebbe
+    # come codice morto, e tagliarlo sarebbe una modifica al codice rimasto.
     "skyview.rs": [
-        "fn calculate_svf_inner",
         "fn crop_svf_intermediate",
     ],
 }
@@ -209,19 +206,18 @@ def senza_pyresult(testo: str) -> tuple[str, int, int]:
 
 
 def esponi(testo: str, da_esporre: list[str]) -> tuple[str, int]:
-    """Promuove a `pub` gli elementi indicati. Restituisce quanti ne ha promossi.
+    """Promuove a `pub` gli elementi privati indicati. Restituisce quanti ne ha promossi.
 
-    Due punti di partenza, perché a monte la visibilità è di due specie:
-    `pub(crate)` in `shadowing.rs`, del tutto privata in `skyview.rs`.
+    La riga di un elemento che a monte ha già una visibilità comincia con `pub`,
+    non con la dichiarazione cercata, e non viene contata: il conteggio in
+    `main` allora non torna, e lo script si ferma invece di lasciar credere di
+    averlo promosso.
     """
     righe = testo.split("\n")
     fatti = 0
     for k, riga in enumerate(righe):
         for elemento in da_esporre:
-            if riga.startswith(f"pub(crate) {elemento}"):
-                righe[k] = riga.replace("pub(crate) ", "pub ", 1)
-                fatti += 1
-            elif riga.startswith(elemento):
+            if riga.startswith(elemento):
                 righe[k] = f"pub {riga}"
                 fatti += 1
     return "\n".join(righe), fatti
