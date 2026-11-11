@@ -61,9 +61,9 @@ pub enum CorsaError {
         crs: String,
         origine: (f64, f64),
     },
-    /// A weather file that was read and is not hourly: a minute field that is
-    /// neither 0 nor 60, or two records for one hour. The Corsa stops before
-    /// the Motore is called.
+    /// A weather file that was read and is not hourly: every error
+    /// `MeteoError::non_orario` answers yes to. The Corsa stops before the
+    /// Motore is called.
     MeteoNonOrario(String),
     Derivazione(DerivazioneError),
     Progetto(ProgettoError),
