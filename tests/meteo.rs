@@ -412,6 +412,41 @@ fn il_minuto_rifiutato_arriva_nel_messaggio_corto_e_senza_caratteri_di_controllo
     }
 }
 
+/// The message a minute field that is not 0 or 60 gives, which quotes it.
+fn minuto_citato(minuto: &str) -> String {
+    leggi(&epw(vec![con_minuto(riga_piena(1, 1, 1), minuto)]))
+        .unwrap_err()
+        .to_string()
+}
+
+#[test]
+fn il_campo_citato_e_tagliato_a_trentadue_caratteri() {
+    let errore = minuto_citato(&"9".repeat(33));
+    assert!(
+        errore.contains(&format!("«{}…»", "9".repeat(32))),
+        "{errore}"
+    );
+    // Thirty-two fit, and nothing says they were cut.
+    let errore = minuto_citato(&"9".repeat(32));
+    assert!(
+        errore.contains(&format!("«{}»", "9".repeat(32))),
+        "{errore}"
+    );
+}
+
+#[test]
+fn una_lettera_che_non_e_ascii_non_arriva_nel_messaggio() {
+    // A letter, not a format character: printable ASCII is all that passes.
+    let errore = minuto_citato("3\u{5d0}0");
+    assert!(errore.contains("«3\u{fffd}0»"), "{errore}");
+}
+
+#[test]
+fn il_campo_citato_perde_gli_spazi_ai_bordi_e_tiene_quelli_in_mezzo() {
+    let errore = minuto_citato(" 3 0 ");
+    assert!(errore.contains("«3 0»"), "{errore}");
+}
+
 #[test]
 fn due_record_per_la_stessa_ora_sono_rifiutati() {
     // What a sub-hourly file looks like once its minutes are 0 or 60, and what
@@ -805,12 +840,34 @@ fn due_mezze_giornate_ai_due_capi_del_file_non_fanno_un_giorno() {
         matches!(errore, ombra::meteo::MeteoError::GiornoMonco { .. }),
         "variante: {errore:?}"
     );
+    // Back at the top of the file a day has to begin, and the message says
+    // which: hour 13 after hour 12 would read as nothing wrong.
     let errore = errore.to_string();
-    assert!(errore.contains("chiede il 17/7, ora 13"), "{errore}");
+    assert!(errore.contains("chiede il 15/7, ora 1"), "{errore}");
     assert!(errore.contains("porta il 15/7, ora 13"), "{errore}");
 
     // The whole day in the middle is still a day.
     assert_eq!(f.ore_dal(data(7, 16), 24).unwrap().len(), 24);
+}
+
+#[test]
+fn un_anno_che_comincia_dall_ora_due_non_ha_un_primo_gennaio_intero() {
+    // A year turned by one record: it opens at hour 2 of 1 January and closes
+    // at hour 1 of the same day. The hours are in a row across the wrap, and
+    // on the same day, and the file still opens in the middle of a day.
+    let mut righe = anno(28);
+    righe.rotate_left(1);
+    let f = leggi(&epw(righe)).unwrap();
+    let errore = f.ore_dal(data(1, 1), 24).unwrap_err();
+    assert!(
+        matches!(errore, ombra::meteo::MeteoError::GiornoMonco { .. }),
+        "variante: {errore:?}"
+    );
+    let errore = errore.to_string();
+    assert!(
+        errore.contains("chiede il 1/1, ora 1, e il file a quel punto porta il 1/1, ora 2"),
+        "{errore}"
+    );
 }
 
 #[test]
@@ -851,6 +908,65 @@ fn un_periodo_che_si_avvolge_su_un_file_che_finisce_a_meta_giornata_e_un_errore(
     let errore = errore.to_string();
     assert!(errore.contains("chiede il 16/7, ora 13"), "{errore}");
     assert!(errore.contains("porta il 15/7, ora 1"), "{errore}");
+}
+
+#[test]
+fn un_periodo_monco_non_nomina_il_primo_marzo() {
+    // «(o il 1/3, ora 1)» belongs to the reader, which lets 1 March follow 28
+    // February. A Periodo that starts on 29 February starts there and nowhere
+    // else.
+    let f = leggi(&epw((13..=24)
+        .map(|ora| riga_piena(2, 29, ora))
+        .chain(giorno_intero(3, 1))
+        .collect()))
+    .unwrap();
+    let errore = f.ore_dal(data(2, 29), 24).unwrap_err().to_string();
+    assert!(
+        errore.contains("chiede il 29/2, ora 1, e il file a quel punto porta il 29/2, ora 13"),
+        "{errore}"
+    );
+
+    // A Periodo that wraps after 28 February does not name 29 February
+    // either: the owner of a typical year has no such day. Back at the top of
+    // the file it asks for hour 1 of the day the file opens with.
+    let f = leggi(&epw((13..=24)
+        .map(|ora| riga_piena(2, 27, ora))
+        .chain(giorno_intero(2, 28))
+        .collect()))
+    .unwrap();
+    let errore = f.ore_dal(data(2, 28), 25).unwrap_err().to_string();
+    assert!(
+        errore.contains("chiede il 27/2, ora 1, e il file a quel punto porta il 27/2, ora 13"),
+        "{errore}"
+    );
+}
+
+#[test]
+fn in_un_file_di_piu_anni_il_periodo_comincia_dal_primo_giorno_intero() {
+    // Two years, the first from noon of 1 January. The file has a whole
+    // 1 January, in its second year, and a Periodo on that day fits.
+    let secondo = anno(28)
+        .into_iter()
+        .map(|riga| riga.replacen("2005,", "2006,", 1));
+    let f = leggi(&epw(anno(28).into_iter().skip(12).chain(secondo).collect())).unwrap();
+    assert_eq!(f.ore_totali(), 2 * 8760 - 12);
+
+    let ore = f.ore_dal(data(1, 1), 24).unwrap();
+    for (passo, valori) in ore.iter().enumerate() {
+        assert_eq!((valori.mese, valori.giorno), (1, 1), "passo {passo}");
+        assert_eq!(valori.ora as usize, passo % 24 + 1, "passo {passo}");
+    }
+
+    // `si_avvolge` counts from the same record: the second year is 8760 hours
+    // long, and one more runs off the end, onto the half day the file opens
+    // with.
+    assert!(!f.si_avvolge(data(1, 1), 8760));
+    assert!(f.si_avvolge(data(1, 1), 8761));
+    let errore = f.ore_dal(data(1, 1), 8761).unwrap_err();
+    assert!(
+        matches!(errore, ombra::meteo::MeteoError::GiornoMonco { .. }),
+        "variante: {errore:?}"
+    );
 }
 
 #[test]

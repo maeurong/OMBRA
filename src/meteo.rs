@@ -53,6 +53,17 @@ pub struct ValoriOrari {
     pub direzione_vento_gradi: Option<f64>,
 }
 
+impl ValoriOrari {
+    /// The month, day and hour of this record.
+    fn quando(&self) -> MeseGiornoOra {
+        MeseGiornoOra {
+            mese: self.mese,
+            giorno: self.giorno,
+            ora: self.ora,
+        }
+    }
+}
+
 /// The month, day and hour of a record, as an error names them. Fields with
 /// names, because a month and a day swapped would still be a date.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,6 +71,23 @@ pub struct MeseGiornoOra {
     pub mese: u32,
     pub giorno: u32,
     pub ora: u32,
+}
+
+impl MeseGiornoOra {
+    /// The hour after this one. After the last hour of 28 February it is 29
+    /// February. The month has to be from 1 to 12, or this panics: the reader
+    /// checks it on every record, and only records are passed here.
+    fn dopo(self) -> Self {
+        let Self { mese, giorno, ora } = self;
+        let (mese, giorno, ora) = if ora < 24 {
+            (mese, giorno, ora + 1)
+        } else if giorno < GIORNI_DEL_MESE[mese as usize - 1] {
+            (mese, giorno + 1, 1)
+        } else {
+            (mese % 12 + 1, 1, 1)
+        };
+        Self { mese, giorno, ora }
+    }
 }
 
 impl fmt::Display for MeseGiornoOra {
@@ -154,10 +182,10 @@ pub enum MeteoError {
         percorso: PathBuf,
         giorno: String,
     },
-    /// A Periodo that reaches a day the file carries only part of, at its
-    /// first record or where the Periodo wraps: the file is hourly and was
-    /// read, and the hour the Periodo counts is not the one the file has
-    /// there.
+    /// A Periodo that reaches a day the file carries only part of. Its first
+    /// day is in the file without its hour 1, or the Periodo runs off the end
+    /// of a file that ends before hour 24 or begins after hour 1. The file is
+    /// hourly and was read.
     GiornoMonco {
         percorso: PathBuf,
         attesa: MeseGiornoOra,
@@ -204,9 +232,9 @@ impl fmt::Display for MeteoError {
             ),
             Self::GiornoAssente { percorso, giorno } => write!(
                 f,
-                "{}: non porta nessuna ora del {giorno}. Un anno tipo non ha il 29 \
-                 febbraio, e un file ritagliato porta solo i suoi giorni: il Periodo deve \
-                 cominciare in un giorno che il file ha",
+                "{}: non porta nessuna ora del {giorno}, e il Periodo deve cominciare in \
+                 un giorno che il file ha. Un anno tipo non ha il 29 febbraio, e un file \
+                 ritagliato ha solo i giorni del ritaglio",
                 percorso.display()
             ),
             Self::MinutoNonOrario {
@@ -266,12 +294,11 @@ impl fmt::Display for MeteoError {
                 trovata,
             } => write!(
                 f,
-                "{}: il Periodo chiede {attesa}{}, e il file a quel punto porta {trovata}. \
+                "{}: il Periodo chiede {attesa}, e il file a quel punto porta {trovata}. \
                  Il file comincia o finisce a metà di un giorno, e un Periodo che arriva in \
-                 fondo al file ricomincia dal suo primo record: serve un file con giorni \
-                 interi, o un Periodo che stia nei giorni che il file porta interi",
-                percorso.display(),
-                o_il_primo_marzo(*attesa)
+                 fondo al file ricomincia dal primo record del file: serve un file con \
+                 giorni interi, o un Periodo che stia nei giorni che il file porta interi",
+                percorso.display()
             ),
         }
     }
@@ -371,19 +398,6 @@ const GIORNI_DEL_MESE: [u32; 12] = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 
 fn intero_fino_a(testo: &str, massimo: u32) -> Option<u32> {
     let valore = testo.trim().parse::<f64>().ok()?;
     (valore.fract() == 0.0 && (1.0..=f64::from(massimo)).contains(&valore)).then_some(valore as u32)
-}
-
-/// The month, day and hour after these, which have to be in the calendar.
-/// After the last hour of 28 February this is 29 February.
-fn ora_dopo(mese: u32, giorno: u32, ora: u32) -> MeseGiornoOra {
-    let (mese, giorno, ora) = if ora < 24 {
-        (mese, giorno, ora + 1)
-    } else if giorno < GIORNI_DEL_MESE[mese as usize - 1] {
-        (mese, giorno + 1, 1)
-    } else {
-        (mese % 12 + 1, 1, 1)
-    };
-    MeseGiornoOra { mese, giorno, ora }
 }
 
 /// Whether `trovata` is where `attesa` says, or is the one other place the
@@ -521,11 +535,12 @@ impl Epw {
                 });
             }
             // Every record is the hour after the one before it, so `ore_dal`
-            // can count records and call them hours. The year is left out: a
-            // file of several years goes from 31 December to 1 January, and so
-            // does a typical year whose months come from different years.
+            // can count records and call them hours. The year is left out: in
+            // a typical year stitched from months of different years it
+            // changes from one month to the next, backwards too. A file of
+            // several years still passes: 1 January follows 31 December.
             if let Some(prima) = ore.last() {
-                let attesa = ora_dopo(prima.mese, prima.giorno, prima.ora);
+                let attesa = prima.quando().dopo();
                 let trovata = MeseGiornoOra { mese, giorno, ora };
                 if !al_suo_posto(attesa, trovata) {
                     return Err(MeteoError::OraFuoriPosto {
@@ -592,53 +607,66 @@ impl Epw {
     /// **The year runs in a circle.** A Periodo of 48 hours starting on 31
     /// December needs the first of January, and an EPW is a *typical* year, not
     /// a calendar one: the file has no next year to read, and the hour after
-    /// its last is its first. A Corsa that wraps is computing December weather
-    /// on a January record, which is what every tool that reads a typical year
-    /// does, and the Giornale is where that has to be said.
+    /// its last is its first. A Corsa that wraps will follow 31 December with
+    /// the January the file opens with, which is what every tool that reads a
+    /// typical year does, and the Giornale is where that will have to be
+    /// said. No Corsa calls this yet: the pairing of records and Ore will.
     ///
     /// **Record `k` of the answer is hour `k % 24 + 1`.** The reader has
     /// checked that the records follow one another, not that the file begins
     /// at hour 1 or ends at hour 24: a file cut out of a year is read. So the
-    /// hours are checked here. The check can fail only where the count begins
-    /// and where it wraps, and there the file has to end at hour 24 and begin
-    /// at hour 1: a Periodo that reaches a day the file has only part of is
-    /// `GiornoMonco`.
+    /// hours are checked here, in the two places they can be wrong. Where the
+    /// count begins: a day that is in the file without its hour 1 is
+    /// `GiornoMonco`. Where it wraps: the file has to end at hour 24 and
+    /// begin at hour 1, or the Periodo has reached a day the file has only
+    /// part of, and that is `GiornoMonco` too.
     pub fn ore_dal(&self, inizio: Data, ore: u32) -> Result<Vec<&ValoriOrari>, MeteoError> {
-        let primo = self
-            .ore
-            .iter()
-            .position(|v| v.mese == inizio.mese && v.giorno == inizio.giorno)
-            .ok_or_else(|| MeteoError::GiornoAssente {
-                percorso: self.percorso.clone(),
-                giorno: format!("{}/{}", inizio.giorno, inizio.mese),
-            })?;
-        let mut attesa = MeseGiornoOra {
-            mese: inizio.mese,
-            giorno: inizio.giorno,
-            ora: 1,
+        let Some(primo) = self.primo_del(inizio) else {
+            let del_giorno = self
+                .ore
+                .iter()
+                .find(|v| v.mese == inizio.mese && v.giorno == inizio.giorno);
+            return Err(match del_giorno {
+                Some(valori) => MeteoError::GiornoMonco {
+                    percorso: self.percorso.clone(),
+                    attesa: MeseGiornoOra {
+                        mese: inizio.mese,
+                        giorno: inizio.giorno,
+                        ora: 1,
+                    },
+                    trovata: valori.quando(),
+                },
+                None => MeteoError::GiornoAssente {
+                    percorso: self.percorso.clone(),
+                    giorno: format!("{}/{}", inizio.giorno, inizio.mese),
+                },
+            });
         };
+        let mut attesa = self.ore[primo].quando();
         let mut serviti = Vec::new();
         for passo in 0..ore as usize {
             let indice = (primo + passo) % self.ore.len();
             let valori = &self.ore[indice];
+            // At the first record of the file a day has to begin, whatever
+            // hour the count has reached: two half days, one from each end of
+            // the file, have their hours in a row and are not a day. So there
+            // the Periodo asks for hour 1 of the day the file opens with.
+            if indice == 0 && valori.ora != 1 {
+                attesa = MeseGiornoOra {
+                    ora: 1,
+                    ..valori.quando()
+                };
+            }
             // The hour alone: across the wrap the day is another one by
-            // design, and inside the file the reader has checked it. Back at
-            // the first record the hour has to be 1 as well: two half days,
-            // one from each end of the file, have their hours in a row and
-            // are not a day.
-            let a_capo = passo > 0 && indice == 0;
-            if valori.ora != attesa.ora || (a_capo && valori.ora != 1) {
+            // design, and inside the file the reader has checked it.
+            if valori.ora != attesa.ora {
                 return Err(MeteoError::GiornoMonco {
                     percorso: self.percorso.clone(),
                     attesa,
-                    trovata: MeseGiornoOra {
-                        mese: valori.mese,
-                        giorno: valori.giorno,
-                        ora: valori.ora,
-                    },
+                    trovata: valori.quando(),
                 });
             }
-            attesa = ora_dopo(valori.mese, valori.giorno, valori.ora);
+            attesa = valori.quando().dopo();
             serviti.push(valori);
         }
         Ok(serviti)
@@ -647,9 +675,16 @@ impl Epw {
     /// Whether a Periodo of `ore` hours from `inizio` runs off the end of the
     /// file and comes back at its first hour.
     pub fn si_avvolge(&self, inizio: Data, ore: u32) -> bool {
+        self.primo_del(inizio)
+            .is_some_and(|primo| primo + ore as usize > self.ore.len())
+    }
+
+    /// The record a Periodo that starts on `inizio` begins at: the first hour
+    /// 1 of that day. A file of several years carries the day more than once,
+    /// and can carry only part of it the first time.
+    fn primo_del(&self, inizio: Data) -> Option<usize> {
         self.ore
             .iter()
-            .position(|v| v.mese == inizio.mese && v.giorno == inizio.giorno)
-            .is_some_and(|primo| primo + ore as usize > self.ore.len())
+            .position(|v| v.mese == inizio.mese && v.giorno == inizio.giorno && v.ora == 1)
     }
 }
