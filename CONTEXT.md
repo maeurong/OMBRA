@@ -86,6 +86,10 @@ _Avoid_: fattore di vista del cielo, SVF esteso, apertura del cielo
 Come il Motore tratta la volta celeste come sorgente di radiazione. Con `anisotropo` il cielo è diviso in patch, ciascuna con la propria luminosità e la propria copertura da edifici e chiome; con `isotropo` è una sorgente uniforme e conta solo lo Sky view factor. È una scelta di modellazione dell'utente, vale per l'intero Progetto e il Giornale la registra. Il predefinito è `anisotropo`.
 _Avoid_: cielo Perez, use_anisotropic, opzione cielo
 
+**Postura**:
+Come sta il corpo della persona per cui si calcola la temperatura media radiante: `in piedi` o `seduta`. Ne dipende l'altezza a cui la persona riceve la radiazione dal suolo, che è quella del baricentro e non la statura. È una scelta di modellazione dell'utente, vale per l'intero Progetto e il Giornale la registra. Il predefinito è `in piedi`.
+_Avoid_: posizione, posture, is_standing, altezza
+
 **Motore**:
 Il nucleo di calcolo radiativo riusato da `UMEP-dev/solweig`, che dai raster e dal meteo produce ombre, radiazione, temperatura media radiante e indici di comfort.
 _Avoid_: solver, kernel, backend
