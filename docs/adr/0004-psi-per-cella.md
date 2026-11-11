@@ -11,7 +11,9 @@ Si decide: **nella copia estratta il nucleo riceve `psi` come raster, per cella*
 due. La [trasmissività lungo il raggio](../../CONTEXT.md) per l'ombra del sole, calcolata ogni
 ora, e la [trasmissività verso il cielo](../../CONTEXT.md) per la volta celeste, calcolata una
 volta per Scenario. La sostituzione la fa `estrai.py` ed è dichiarata in `PROVENIENZA.toml`
-con il conteggio dei punti toccati: uno per il raggio, sette per il cielo.
+con il conteggio dei punti toccati: uno per il raggio, sette per il cielo. All'11 novembre 2026
+né la regola in `estrai.py` né la dichiarazione esistono ancora, e il conteggio è un altro:
+vedi l'aggiornamento in fondo.
 
 ## Perché non le alternative
 
@@ -32,7 +34,8 @@ decisione, presa l'8 settembre 2026, è di non chiederlo: la modifica resta nost
 ammette di adattare per far compilare e vieta di migliorare. Questa decisione apre una terza
 classe, la trasformazione additiva dichiarata, a una condizione che non si negozia: **con un
 raster costante il nucleo deve riprodurre a monte byte per byte.** È ciò che tiene validi i test
-di parità, e un test lo verifica.
+di parità, e un test lo verificherà: all'11 novembre 2026 c'è una misura e non ancora un test,
+vedi l'aggiornamento in fondo.
 
 **Nel cielo anisotropo resta un'approssimazione**, e il Giornale la dichiara: una cella che vede
 un sempreverde in una patch e una chioma spoglia in un'altra riceve una sola trasmissività verso
@@ -43,66 +46,111 @@ calcola quell'unica trasmissività, lo decide l'[ADR 0006](0006-chiome-riunite.m
 **`conifer` non entra nel ragionamento.** Nel nucleo Rust al commit pinnato è un campo mai letto:
 vive nella struct degli scalari e nei metadati Python. Non si sostituisce e non si dichiara.
 
-## Aggiornamento, 2026-11-11: il passo fuso lo scrive monte, la sostituzione resta nostra
+## Aggiornamento, 2026-11-11: la funzione la scriveranno a monte, la sostituzione resta nostra
 
-Il 10 novembre a monte hanno accettato di dare un nome al passo fuso
-([ADR 0003](0003-catena-radiativa-e-cucitura-a-monte.md), aggiornamento di quel giorno). La
-funzione su cui cadrà la sostituzione ora la scrive monte, e la premessa dell'8 settembre, «la
-mappa non ne dipende», andava riletta. Il [ticket](https://github.com/maeurong/OMBRA/issues/43)
-l'ha riletta e conferma la decisione: **non si chiede a monte**. Le ragioni sono tre, e sono
-nuove.
+Il 10 novembre a monte hanno accettato di scrivere la funzione nominata: la chiusura di
+`compute_timestep` estratta in una funzione con un nome, chiamabile da Rust
+([ADR 0003](0003-catena-radiativa-e-cucitura-a-monte.md), aggiornamento di quel giorno). Uscirà
+con la prossima release, e ancora non esiste.
 
-**Con un raster solo la modifica resterebbe.** A monte la trasmissività è una. A OMBRA ne
-servono due, su siti diversi, e la copia andrebbe divisa lo stesso.
+L'8 settembre non si chiedeva la trasmissività per cella perché «la mappa non ne dipende»: il
+passo fuso l'avremmo estratto noi, e la sostituzione sarebbe caduta su un testo tagliato da
+noi. Ora cadrà su una funzione scritta a monte, e chiederla per cella prima che ne fissino la
+firma era tornata un'opzione. Il [ticket](https://github.com/maeurong/OMBRA/issues/43) l'ha
+pesata e conferma la decisione: **non si chiede a monte**. La mappa continua a non dipenderne.
+Le ragioni sono tre, e sono nuove.
 
-**Chiederne due sarebbe chiedere a monte questo ADR.** Il loro strato Python calcola un valore
-per giorno dell'anno e riempirebbe il raster con una costante. Dovrebbero cambiare anche lo
-shader GPU, che riceve la trasmissività come parametro, nella stessa release in cui hanno
-promesso uscite identiche byte per byte.
+**Con un solo parametro raster la modifica resterebbe.** A monte la trasmissività è una sola.
+OMBRA ne usa due, quella lungo il raggio e quella verso il cielo, in punti diversi del passo:
+ricevuto un raster solo, la copia vendorata dovrebbe comunque sdoppiarlo e portare ciascuno al
+suo punto.
 
-**OMBRA vendora comunque.** Monte non prevede di mettere `pyo3` dietro una feature, quindi
-`estrai.py` passerà su `pipeline.rs` anche dopo la release, chiunque abbia scritto la funzione.
+**Chiedere due raster sarebbe chiedere a monte questo ADR.** Il loro strato Python calcola un
+valore per giorno dell'anno e riempirebbe il raster con una costante. Dovrebbero cambiare anche
+lo shader GPU, che riceve la trasmissività come parametro, nella release in cui lo spostamento
+della funzione deve lasciare identiche byte per byte le loro uscite d'oro e di parità
+([UMEP-dev/solweig#14](https://github.com/UMEP-dev/solweig/issues/14)). Il valore per giorno
+dell'anno è letto in `UMEP-dev/solweig`. L'implementazione di riferimento è ora
+`UMEP-dev/umep-solweig`, e lì resta da leggere.
 
-Per ora a monte non si scrive. Se servirà dirlo, Mario lo dirà quando risponderà alla release.
+**OMBRA vendora comunque.** A monte non prevedono di mettere `pyo3` dietro una feature, quindi
+`estrai.py` dovrà passare su `pipeline.rs` comunque, chiunque abbia scritto la funzione.
+
+Per ora a monte non si manda nessuna richiesta sulla trasmissività. Se servirà parlarne, lo
+farà Mario su UMEP-dev/solweig#14, quando risponderà alla release.
 
 ### Il conteggio era sbagliato
 
-«Uno per il raggio, sette per il cielo» contava i siti spenti e saltava le firme. Al pin
-`c31c575` (0.1.0b98) la sostituzione è di undici righe in tre file:
+«Uno per il raggio, sette per il cielo» torna contando le righe di `pipeline.rs` in cui `psi`
+è letto: l'espressione lungo il raggio, poi due legature e cinque chiamate, compresa quella
+dietro la feature `gpu`, che non si tocca. Saltava firme e corpi delle due funzioni che lo
+ricevono. È la lettura che ne dà la [ricerca sul passo fuso](../ricerca/01-passo-fuso.md), non
+una nota di questo ADR.
 
-| File | Cosa | Righe |
+Al pin `c31c575` (0.1.0b98) la sostituzione toccherà undici righe in tre file:
+
+| File | Cosa | N. righe |
 |---|---|---|
 | `pipeline.rs` | l'espressione lungo il raggio (`:756`) | 1 |
 | `pipeline.rs` | le due legature verso il cielo (`:838`, `:1395`) | 2 |
 | `pipeline_radiation.rs` | firma e corpo di `compute_ani_lum_from_packed` (`:378`, `:402`, `:421`) | 3 |
-| `vegetation.rs` | firma e corpo di `kside_veg_isotropic_pure` (`:363`, `:413-419`) | 5 |
+| `vegetation.rs` | firma e corpo di `kside_veg_isotropic_pure` (`:363`, `:413`, `:415`, `:417`, `:419`) | 5 |
+
+Undici sono le righe sostituite. L'ingresso dei due raster nella funzione si conterà quando la
+firma di monte esisterà: `weather.psi` è un `f32`, e due raster entrano solo da parametri o
+campi nuovi.
 
 **Si sostituiscono le legature, non le chiamate.** Cambiate le due `let psi = weather.psi;`, le
 quattro chiamate che ne leggono il nome seguono da sole. Due delle quattro stanno nel ramo
-dello schema di suolo 2026a, spento in OMBRA, ma passano per le stesse due funzioni: cambiata
-la firma, devono ricevere il raster anche loro, o la copia non compila. Il sito dietro la
-feature `gpu` resta scalare: accesa la feature, la copia non compilerebbe.
+dello schema di suolo 2026a, che OMBRA terrà spento, ma passano per le stesse due funzioni:
+cambiata la firma, devono ricevere il raster anche loro, o la copia non compila. La chiamata
+dietro la feature `gpu` resta scalare, e con la feature accesa la sostituzione non
+compilerebbe. A monte `gpu` è accesa di default; la copia vendorata non la dichiara e non ha il
+modulo `gpu`.
 
-**`estrai.py` non ha ancora queste regole.** Ciascuna dichiarerà quante volte deve trovare il
-proprio testo, come già fa `sostituzioni` in `PROVENIENZA.toml`, e lo script si fermerà al
-primo conteggio che non torna. Mentre `pipeline.rs` cambiava intorno, l'espressione lungo il
-raggio e la chiamata dell'anisotropo hanno tenuto lo stesso testo nei quaranta tag da 0.1.0b55
-a 0.1.0b98.
+**Cade una conseguenza della [risoluzione sulla forma del passo](https://github.com/maeurong/OMBRA/issues/32)**:
+«`weather.psi` resta scalare, lo leggono soltanto i siti 2026a e GPU». Dopo la sostituzione
+`weather.psi` sarà un campo che nessuna riga compilata legge. I nomi decisi lì per i due raster
+restano: `trasmissivita_raggio_v` e `trasmissivita_cielo_v`.
 
-### Sul passo intero l'invariante regge
+**`estrai.py` non ha ancora queste regole**: si scriveranno quando la funzione nominata sarà in
+un tag. Ciascuna dichiarerà quante volte deve trovare il proprio testo, e lo script si fermerà
+al primo conteggio che non torna, come già fa con il dizionario `SOSTITUZIONI`. In
+`vegetation.rs` il conteggio dipende dall'ordine delle passate: la gemella
+`#[pyfunction] kside_veg` porta la stessa firma e le stesse quattro righe, e finché
+l'estrazione non l'ha tolta i testi contano il doppio.
 
-Fin qui lo si era misurato solo sui kernel isolati. La misura dell'11 novembre confronta due
-copie di monte a 0.1.0b98, compilate senza la feature `gpu`: l'originale, e una con le undici
-righe sostituite e i due raster riempiti con lo scalare. Ciascuna esegue quattro calcoli di tre
-ore consecutive su una scena sintetica di 60 × 60 celle, con due edifici e due macchie di
-chioma: luglio con trasmissività 0,03 e gennaio con 0,5, ciascuno con i due Modelli di cielo.
-Sei campi per ora, 72 griglie, 259.200 valori: **identici bit per bit**.
+**Nella storia di monte il conteggio si sarebbe fermato due volte.** Nei quaranta tag da
+0.1.0b55 a 0.1.0b98 l'espressione lungo il raggio non è mai cambiata. Gli altri testi sì: a
+0.1.0b86 `compute_ani_lum_from_packed` è passata da `pipeline.rs` a `pipeline_radiation.rs`, e a
+0.1.0b90 le legature sono diventate due. In entrambi i casi una regola a conteggio avrebbe
+fermato lo script.
 
-Con un secondo valore sulla metà destra del raster, la metà sinistra resta identica e a destra
-cambiano 37.959 valori: il nucleo legge il raster cella per cella.
+### Sul passo intero la condizione regge
 
-**Cosa la misura lascia fuori.** La sostituzione è fatta a mano nella chiusura di
-`compute_timestep`: `estrai.py` e la funzione nominata restano da provare. Il ramo 2026a
-compila, e nessun calcolo lo esegue. La scena è sintetica e la macchina una sola: Bastia resta
-da provare. Gli script stanno fuori dal repository. Il test che questo ADR chiede si scriverà
-quando la funzione nominata sarà in un tag.
+La condizione di questo ADR, raster costante uguale a monte byte per byte, fin qui era
+misurata solo sulle formule isolate. La misura dell'11 novembre confronta due cloni di monte a
+0.1.0b98, compilati senza la feature `gpu`: l'originale, e uno con le undici righe sostituite e
+i due raster riempiti con lo scalare. Ciascuno esegue quattro calcoli di tre ore consecutive:
+luglio con trasmissività 0,03 e gennaio con 0,5, ciascuno con i due Modelli di cielo. La scena
+è sintetica, 60 × 60 celle con due edifici e due macchie di chioma. Le uscite sono sei campi per
+ora: `tmrt`, `shadow`, `kdown`, `kup`, `ldown`, `lup`. In tutto 72 griglie e 259.200 valori,
+**identici byte per byte**.
+
+Con un secondo valore sulla metà destra dei due raster, in questa scena la metà sinistra resta
+identica e a destra cambiano 37.959 valori su 129.600: il nucleo legge i raster cella per cella.
+
+**Cosa la misura lascia fuori:**
+
+- `estrai.py` e la funzione nominata: la sostituzione è fatta a mano nella chiusura di
+  `compute_timestep`;
+- due raster diversi fra loro: i due provati hanno sempre lo stesso contenuto, e uno scambio
+  fra raggio e cielo passerebbe identico;
+- il ramo 2026a in esecuzione: compila, e nessun calcolo lo esegue;
+- Bastia: la scena è sintetica;
+- una seconda macchina: questa è arm64, con rustc 1.98.0;
+- lo stato termico del suolo dopo l'ultima ora, che non è fra le sei uscite;
+- gli script della misura, che non sono conservati nel repository.
+
+La condizione resta un nostro test. Si scriverà nel repository quando la funzione nominata sarà
+in un tag.
