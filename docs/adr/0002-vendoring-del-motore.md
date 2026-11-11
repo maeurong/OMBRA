@@ -58,3 +58,11 @@ Il fork avrebbe reso il nucleo consumabile da chiunque, ed era il tipo di contri
 esistere un progetto agli occhi di quello a monte. Il vendoring non restituisce niente a nessuno,
 e ci lascia una copia da tenere allineata a mano. È il prezzo di non dipendere dai tempi di un
 manutentore singolo, ed è consapevole.
+
+## Aggiornamento, 2026-11-11: due ostacoli su tre sono caduti, il vendoring resta
+
+La richiesta a monte che questo ADR non apriva è stata aperta il 2026-09-03, con
+[ADR 0003](0003-catena-radiativa-e-cucitura-a-monte.md), e a monte hanno risposto con la
+0.1.0b99: il tipo di crate comprende `rlib`, e un modulo pubblico `api` riesporta ciò che
+OMBRA chiama. Resta `extension-module`, e basta da solo a tenere il crate fuori da un binario
+singolo. Il vendoring resta: il perché sta in ADR 0003, nell'aggiornamento dello stesso giorno.
