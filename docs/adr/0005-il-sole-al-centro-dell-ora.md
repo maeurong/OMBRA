@@ -15,7 +15,7 @@ presa nel ticket [Istante del sole per un record orario](https://github.com/maeu
 Si decide: **il sole di un'[Ora](../../CONTEXT.md) si calcola al suo centro.** L'Ora `k` di un
 Periodo, contata da zero, va da `k` a `k + 1` ore dopo la mezzanotte del primo giorno, nell'ora
 del fuso che il file meteo dichiara, senza ora legale. Le corrisponde il record EPW numero
-`k + 1` contato dal primo record di quel giorno, e il suo sole è quello di `k + 0:30`. Vale per tutto
+`k + 1` contato dall'ora 1 di quel giorno, e il suo sole è quello di `k + 0:30`. Vale per tutto
 ciò che una Corsa calcola in quell'Ora: le ombre, le ore di sole, le serie dei Punti di
 osservazione, la verifica dell'ombra nel Giornale, e la radiazione quando la catena radiativa
 entrerà.
@@ -79,9 +79,10 @@ a monte una copia con il minuto a 0.
 **Un file a cui mancano delle ore ferma la Corsa.** L'abbinamento fissato qui sopra conta i
 record, e con un buco darebbe a un'Ora il record di un'altra. Il lettore rifiuta quindi un
 record che non è l'ora successiva a quello che lo precede: sia quando mancano delle ore, sia
-quando sono fuori ordine. L'anno non entra nel confronto: un file di più anni passa dal 31
-dicembre al primo gennaio, e così un anno tipo cucito con mesi di anni diversi. Dopo il 28
-febbraio passano sia il 29 sia il primo marzo, e il 29 febbraio è accettato senza chiedere se
+quando sono fuori ordine. L'anno non entra nel confronto: in un anno tipo cucito con mesi di
+anni diversi cambia da un mese all'altro, anche all'indietro. Un file di più anni passa lo
+stesso: il primo gennaio segue il 31 dicembre. Dopo il 28 febbraio passano sia il 29 sia il
+primo marzo, e il 29 febbraio è accettato senza chiedere se
 l'anno scritto sul record è bisestile. Il lettore rifiuta anche un mese, un giorno o un'ora che
 non sono un numero intero o che il calendario non ha: mese 13, 31 aprile, ora 0, ora 13.5. L'ora
 va da 1 a 24, e un file che la numera da 0 a 23 non dice se l'ora 0 è l'inizio o la fine del suo
@@ -92,7 +93,8 @@ file sono rifiutati.
 
 **Un file ritagliato da un anno si legge, e il giorno a metà lo rileva `ore_dal` quando un
 Periodo ci arriva.** Che un file cominci o finisca a metà di un giorno non è un errore di
-lettura. `ore_dal` serve i record di un Periodo dal primo record del suo primo giorno: se non
-portano le ore 1, 2, … 24 in fila restituisce un errore, e lo stesso fa quando il Periodo supera
-la fine di un file che non finisce all'ora 24 o non comincia all'ora 1. Nessuna Corsa la chiama
-ancora: lo farà l'abbinamento.
+lettura. `ore_dal` serve i record di un Periodo dalla prima ora 1 che il file porta per il primo
+giorno del Periodo. Restituisce un errore se quel giorno è nel file senza la sua ora 1, e quando il
+Periodo supera la fine di un file che non finisce all'ora 24 o non comincia all'ora 1. Nessuna
+Corsa la chiama ancora: lo farà l'abbinamento, e fino ad allora una Corsa su un file che comincia
+a metà di un giorno non dà errore.
