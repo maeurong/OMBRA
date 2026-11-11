@@ -37,7 +37,8 @@ di parità, e un test lo verifica.
 **Nel cielo anisotropo resta un'approssimazione**, e il Giornale la dichiara: una cella che vede
 un sempreverde in una patch e una chioma spoglia in un'altra riceve una sola trasmissività verso
 il cielo. Renderla esatta chiederebbe una matrice d'ombra per Strato, che è una modifica più
-profonda di quella ammessa qui.
+profonda di quella ammessa qui. Come due Strati si compongono in una sola geometria, e come si
+calcola quell'unica trasmissività, lo decide l'[ADR 0006](0006-chiome-riunite.md).
 
 **`conifer` non entra nel ragionamento.** Nel nucleo Rust al commit pinnato è un campo mai letto:
 vive nella struct degli scalari e nei metadati Python. Non si sostituisce e non si dichiara.

@@ -51,11 +51,31 @@ fn riga_piena(mese: u32, giorno: u32, ora: u32) -> String {
     )
 }
 
-/// A whole year of records, one per hour, so the wrap-around has something to
-/// wrap onto. Two days is enough to be a year for the reader: it counts hours
-/// from the first record and knows nothing about the calendar.
+/// A weather file with these records after the header. The reader wants every
+/// record to be the hour after the one before it, so they have to be
+/// consecutive. It does not ask for a whole year: a few hours are a file.
 fn epw(righe: Vec<String>) -> String {
     format!("{}\n{}\n", intestazione(), righe.join("\n"))
+}
+
+/// The twenty-four records of one day.
+fn giorno_intero(mese: u32, giorno: u32) -> impl Iterator<Item = String> {
+    (1..=24).map(move |ora| riga_piena(mese, giorno, ora))
+}
+
+/// Every hour of a year from 1 January, with a February of 28 or 29 days.
+fn anno(febbraio: u32) -> Vec<String> {
+    [31, febbraio, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        .into_iter()
+        .zip(1..)
+        .flat_map(|(giorni, mese)| (1..=giorni).flat_map(move |giorno| giorno_intero(mese, giorno)))
+        .collect()
+}
+
+/// A record with the month, day and hour fields written as given, numbers or
+/// not. `riga` only writes whole numbers there.
+fn con_data(mese: &str, giorno: &str, ora: &str) -> String {
+    riga_piena(1, 1, 1).replacen("2005,1,1,1,", &format!("2005,{mese},{giorno},{ora},"), 1)
 }
 
 fn leggi(testo: &str) -> Result<Epw, ombra::meteo::MeteoError> {
@@ -94,11 +114,13 @@ fn un_fuso_che_non_e_un_multiplo_dell_ora_si_legge_come_sta_scritto() {
 
 #[test]
 fn le_colonne_lette_sono_quelle_giuste() {
-    let f = leggi(&epw(vec![riga(
-        7, 15, 13, "31.4", "42", "880", "790", "160", "225", "3.5",
-    )]))
-    .unwrap();
-    let ora = f.ore_dal(data(7, 15), 1).unwrap()[0];
+    // A whole day, because a Periodo starts at hour 1 of its first day: the
+    // record looked at is the thirteenth, and it is the only one with these
+    // values.
+    let mut righe: Vec<String> = giorno_intero(7, 15).collect();
+    righe[12] = riga(7, 15, 13, "31.4", "42", "880", "790", "160", "225", "3.5");
+    let f = leggi(&epw(righe)).unwrap();
+    let ora = f.ore_dal(data(7, 15), 13).unwrap()[12];
     assert_eq!(ora.mese, 7);
     assert_eq!(ora.giorno, 15);
     assert_eq!(ora.ora, 13);
@@ -182,13 +204,24 @@ fn un_periodo_che_supera_la_fine_dell_anno_torna_alla_prima_ora() {
 
 #[test]
 fn un_giorno_che_il_file_non_ha_e_un_errore_e_non_un_giorno_vicino() {
-    // 29 February is the case that brings anyone here: an EPW has 8760 hours
-    // and no leap day. Silently serving 28 February or 1 March would move a
-    // whole Corsa by a day without saying so.
-    let f = leggi(&epw(vec![riga_piena(2, 28, 1), riga_piena(3, 1, 1)])).unwrap();
-    let errore = f.ore_dal(data(2, 29), 1).unwrap_err().to_string();
+    // 29 February is the case that brings anyone here: a typical year has no
+    // leap day. Silently serving 28 February or 1 March would move a whole
+    // Corsa by a day without saying so.
+    let f = leggi(&epw(giorno_intero(2, 28)
+        .chain(giorno_intero(3, 1))
+        .collect()))
+    .unwrap();
+    let errore = f.ore_dal(data(2, 29), 1).unwrap_err();
+    // The file is hourly: it is the Periodo that asks for a day it lacks.
+    assert!(!errore.non_orario());
+    let errore = errore.to_string();
     assert!(errore.contains("29/2"), "{errore}");
     assert!(errore.contains("29 febbraio"), "{errore}");
+
+    // The same typical year serves a Periodo across the day it does not have:
+    // the hour after the last of 28 February is the first of 1 March.
+    let ore = f.ore_dal(data(2, 28), 48).unwrap();
+    assert_eq!((ore[24].mese, ore[24].giorno, ore[24].ora), (3, 1, 1));
 }
 
 #[test]
@@ -360,7 +393,23 @@ fn il_minuto_rifiutato_arriva_nel_messaggio_corto_e_senza_caratteri_di_controllo
     .unwrap_err()
     .to_string();
     assert!(!errore.chars().any(char::is_control), "{errore:?}");
-    assert!(errore.contains("«30[2K»"), "{errore}");
+    // Shown as U+FFFD and not dropped: the reader of the message sees that
+    // something was there.
+    assert!(errore.contains("«30\u{fffd}[2K\u{fffd}»"), "{errore}");
+
+    // Unicode has characters that are not control characters and still
+    // reorder or hide the text around them: right-to-left override, isolates,
+    // zero width space, line separator, byte order mark.
+    for nascosto in ["\u{202e}", "\u{2066}", "\u{200b}", "\u{2028}", "\u{feff}"] {
+        let errore = leggi(&epw(vec![con_minuto(
+            riga_piena(1, 1, 1),
+            &format!("3{nascosto}0"),
+        )]))
+        .unwrap_err()
+        .to_string();
+        assert!(!errore.contains(nascosto), "{errore:?}");
+        assert!(errore.contains("«3\u{fffd}0»"), "{errore}");
+    }
 }
 
 #[test]
@@ -409,13 +458,399 @@ fn un_ora_ripetuta_lontano_dalla_prima_e_rifiutata_lo_stesso() {
 fn la_stessa_ora_di_un_altro_anno_non_e_un_ora_ripetuta() {
     // A file of two years has one record per hour and is hourly. The year is
     // read as the file writes it, so this stays true of a typical year made of
-    // months taken from different years.
-    let f = leggi(&epw(vec![
-        riga_piena(7, 15, 13),
-        riga_piena(7, 15, 13).replacen("2005,", "2006,", 1),
+    // months taken from different years. Two whole years, because the same
+    // hour comes back only after every other hour of the year has gone by.
+    let secondo = || {
+        anno(28)
+            .into_iter()
+            .map(|riga| riga.replacen("2005,", "2006,", 1))
+    };
+    let f = leggi(&epw(anno(28).into_iter().chain(secondo()).collect())).unwrap();
+    assert_eq!(f.ore_totali(), 2 * 8760);
+
+    // The same two years with the same year written on both: every hour of the
+    // second is a repeat, and the first of them is the one reported.
+    let errore = leggi(&epw(anno(28).into_iter().chain(anno(28)).collect())).unwrap_err();
+    assert!(
+        matches!(errore, ombra::meteo::MeteoError::OraRipetuta { .. }),
+        "variante: {errore:?}"
+    );
+    let errore = errore.to_string();
+    assert!(errore.contains("riga 8769"), "{errore}");
+    assert!(errore.contains("alla riga 9"), "{errore}");
+}
+
+/// The error a month, day or hour outside the calendar has to give, on the
+/// one data line of the file.
+fn fuori_calendario(mese: &str, giorno: &str, ora: &str) -> String {
+    match leggi(&epw(vec![con_data(mese, giorno, ora)])) {
+        Err(errore @ ombra::meteo::MeteoError::FuoriCalendario { .. }) => {
+            assert!(errore.non_orario(), "{errore}");
+            let errore = errore.to_string();
+            assert!(errore.contains("riga 9"), "{errore}");
+            errore
+        }
+        altro => panic!("«{mese}», «{giorno}», «{ora}» è passato: {altro:?}"),
+    }
+}
+
+#[test]
+fn un_mese_un_giorno_o_un_ora_con_la_frazione_non_sono_troncati() {
+    // 13.5 is not hour 13. Truncated, it would be read as hour 13 and nobody
+    // would be told.
+    let errore = fuori_calendario("1", "1", "13.5");
+    assert!(errore.contains("l'ora è «13.5»"), "{errore}");
+    assert!(errore.contains("da 1 a 24"), "{errore}");
+
+    let errore = fuori_calendario("1", "1.5", "1");
+    assert!(errore.contains("il giorno è «1.5»"), "{errore}");
+    assert!(errore.contains("da 1 a 31"), "{errore}");
+
+    let errore = fuori_calendario("1.5", "1", "1");
+    assert!(errore.contains("il mese è «1.5»"), "{errore}");
+    assert!(errore.contains("da 1 a 12"), "{errore}");
+}
+
+#[test]
+fn un_ora_si_conta_da_uno_a_ventiquattro() {
+    // A file that numbers its hours 0 to 23 is not an EPW: read as one, every
+    // record would land an hour away from where it belongs.
+    for ora in ["0", "25"] {
+        let errore = fuori_calendario("1", "1", ora);
+        assert!(errore.contains(&format!("l'ora è «{ora}»")), "{errore}");
+        assert!(errore.contains("da 1 a 24"), "{errore}");
+    }
+    for ora in ["1", "24"] {
+        assert!(leggi(&epw(vec![con_data("1", "1", ora)])).is_ok(), "{ora}");
+    }
+}
+
+#[test]
+fn un_mese_o_un_giorno_che_il_calendario_non_ha_sono_rifiutati() {
+    for mese in ["0", "13"] {
+        let errore = fuori_calendario(mese, "1", "1");
+        assert!(errore.contains(&format!("il mese è «{mese}»")), "{errore}");
+        assert!(errore.contains("da 1 a 12"), "{errore}");
+    }
+    // The last day is the one of that month.
+    for (mese, giorno, ultimo) in [
+        ("1", "0", 31),
+        ("1", "32", 31),
+        ("4", "31", 30),
+        ("2", "30", 29),
+    ] {
+        let errore = fuori_calendario(mese, giorno, "1");
+        assert!(
+            errore.contains(&format!("il giorno è «{giorno}»")),
+            "{errore}"
+        );
+        assert!(errore.contains(&format!("da 1 a {ultimo}")), "{errore}");
+    }
+    // 29 February is in the file of a leap year. The year of a typical year is
+    // a different one month by month, so the reader does not ask which it is.
+    let f = leggi(&epw(vec![con_data("2", "29", "1")])).unwrap();
+    assert_eq!(f.ore_dal(data(2, 29), 1).unwrap()[0].giorno, 29);
+}
+
+#[test]
+fn un_mese_un_giorno_o_un_ora_che_non_sono_un_numero_del_calendario_fermano_la_corsa() {
+    // An `as u32` cast would turn a negative number and NaN into 0 and infinity
+    // into `u32::MAX`. A field that is empty or is not a number is not in the
+    // calendar either: it stops the Corsa as a fraction does, instead of
+    // making the file unreadable, which the Corsa survives.
+    for testo in ["-1", "-13", "NaN", "inf", "-inf", "", " ", "x", "13x"] {
+        let errore = fuori_calendario(testo, "1", "1");
+        assert!(errore.contains("il mese è «"), "«{testo}»: {errore}");
+        let errore = fuori_calendario("1", testo, "1");
+        assert!(errore.contains("il giorno è «"), "«{testo}»: {errore}");
+        let errore = fuori_calendario("1", "1", testo);
+        assert!(errore.contains("l'ora è «"), "«{testo}»: {errore}");
+    }
+}
+
+#[test]
+fn un_intero_passa_comunque_sia_scritto() {
+    let mut righe: Vec<String> = giorno_intero(1, 1).collect();
+    for ora in ["13.0", " 13 ", "1.3e1"] {
+        righe[12] = con_data("1.0", " 1 ", ora);
+        let f = leggi(&epw(righe.clone())).unwrap();
+        let tredicesima = f.ore_dal(data(1, 1), 13).unwrap()[12];
+        assert_eq!(
+            (tredicesima.mese, tredicesima.giorno, tredicesima.ora),
+            (1, 1, 13),
+            "ora «{ora}»"
+        );
+    }
+}
+
+#[test]
+fn il_campo_fuori_calendario_arriva_nel_messaggio_corto_e_senza_caratteri_di_controllo() {
+    // As for the minute: a million digits are a number to the parser, and the
+    // message goes to a terminal and into every Giornale.
+    let lungo = "9".repeat(1_000_000);
+    for errore in [
+        fuori_calendario(&lungo, "1", "1"),
+        fuori_calendario("1", &lungo, "1"),
+        fuori_calendario("1", "1", &lungo),
+    ] {
+        assert!(errore.chars().count() < 400, "{} caratteri", errore.len());
+        assert!(errore.contains('…'), "il taglio va dichiarato: {errore}");
+    }
+
+    let errore = fuori_calendario("1", "1", "25\u{1b}[2K\u{7}");
+    assert!(!errore.chars().any(char::is_control), "{errore:?}");
+    assert!(errore.contains("«25\u{fffd}[2K\u{fffd}»"), "{errore}");
+}
+
+/// The error a record that is not the hour after the one before it has to
+/// give.
+fn fuori_posto(righe: Vec<String>) -> String {
+    match leggi(&epw(righe)) {
+        Err(errore @ ombra::meteo::MeteoError::OraFuoriPosto { .. }) => {
+            assert!(errore.non_orario(), "{errore}");
+            errore.to_string()
+        }
+        altro => panic!("il file è passato: {altro:?}"),
+    }
+}
+
+#[test]
+fn un_ora_che_manca_dentro_il_giorno_ferma_la_lettura() {
+    // `ore_dal` counts records and calls them hours: after a missing one every
+    // Ora would get the record of the hour after its own.
+    let errore = fuori_posto(vec![
+        riga_piena(1, 1, 1),
+        riga_piena(1, 1, 2),
+        riga_piena(1, 1, 4),
+    ]);
+    assert!(errore.contains("riga 11"), "{errore}");
+    // One string and not two: nothing may slip in between what goes there and
+    // what is there, least of all the 1 March that only February allows.
+    assert!(
+        errore.contains("ci va il 1/1, ora 3, e c'è il 1/1, ora 4"),
+        "{errore}"
+    );
+}
+
+#[test]
+fn un_buco_ferma_la_corsa_anche_se_la_riga_ha_un_campo_che_non_si_legge() {
+    // The order of the checks is what the Corsa sees: a missing hour stops
+    // it, a temperature that is not a number does not. On a line with both,
+    // the one that stops it has to be the one reported.
+    let errore = leggi(&epw(vec![
+        riga_piena(1, 1, 1),
+        riga(1, 1, 3, "sette", "97", "0", "0", "0", "45", "4.0"),
     ]))
+    .unwrap_err();
+    assert!(errore.non_orario(), "{errore}");
+}
+
+#[test]
+fn un_minuto_sbagliato_si_dice_prima_dell_ora_fuori_posto() {
+    let errore = leggi(&epw(vec![
+        riga_piena(1, 1, 1),
+        con_minuto(riga_piena(1, 1, 3), "30"),
+    ]))
+    .unwrap_err();
+    assert!(
+        matches!(errore, ombra::meteo::MeteoError::MinutoNonOrario { .. }),
+        "variante: {errore:?}"
+    );
+}
+
+#[test]
+fn un_ora_che_manca_a_cavallo_di_mezzanotte_ferma_la_lettura() {
+    for (prima, dopo, attesa) in [
+        // Hour 24 is missing.
+        ((1, 1, 23), (1, 2, 1), "ci va il 1/1, ora 24"),
+        // Hour 1 of the day after is missing.
+        ((1, 1, 24), (1, 2, 2), "ci va il 2/1, ora 1"),
+        // A whole day is missing.
+        ((1, 1, 24), (1, 3, 1), "ci va il 2/1, ora 1"),
+        // And so is the last day of a month.
+        ((1, 30, 24), (2, 1, 1), "ci va il 31/1, ora 1"),
+        // The whole file from the last hour of the year to the second day.
+        ((12, 31, 24), (1, 2, 1), "ci va il 1/1, ora 1"),
+    ] {
+        let errore = fuori_posto(vec![
+            riga_piena(prima.0, prima.1, prima.2),
+            riga_piena(dopo.0, dopo.1, dopo.2),
+        ]);
+        assert!(errore.contains("riga 10"), "{errore}");
+        assert!(errore.contains(attesa), "{errore}");
+        assert!(
+            errore.contains(&format!("c'è il {}/{}, ora {}", dopo.1, dopo.0, dopo.2)),
+            "{errore}"
+        );
+    }
+}
+
+#[test]
+fn due_record_scambiati_di_posto_fermano_la_lettura() {
+    let errore = fuori_posto(vec![
+        riga_piena(1, 1, 1),
+        riga_piena(1, 1, 3),
+        riga_piena(1, 1, 2),
+        riga_piena(1, 1, 4),
+    ]);
+    assert!(errore.contains("riga 10"), "{errore}");
+    assert!(errore.contains("ci va il 1/1, ora 2"), "{errore}");
+    assert!(errore.contains("c'è il 1/1, ora 3"), "{errore}");
+}
+
+#[test]
+fn la_fine_di_un_mese_e_la_fine_dell_anno_non_sono_un_buco() {
+    for (prima, dopo) in [
+        ((1, 31), (2, 1)),
+        ((4, 30), (5, 1)),
+        // A typical year has no leap day, the file of a leap year has it.
+        ((2, 28), (3, 1)),
+        ((2, 28), (2, 29)),
+        ((2, 29), (3, 1)),
+        // A file of several years, and a typical year that goes round.
+        ((12, 31), (1, 1)),
+    ] {
+        let f = leggi(&epw(vec![
+            riga_piena(prima.0, prima.1, 24),
+            riga_piena(dopo.0, dopo.1, 1),
+        ]));
+        assert!(f.is_ok(), "{prima:?} → {dopo:?}: {f:?}");
+    }
+    // The year is not part of the sequence: the months of a typical year come
+    // from different years, and January may carry an earlier one than December.
+    let f = leggi(&epw(vec![
+        riga_piena(12, 31, 24),
+        riga_piena(1, 1, 1).replacen("2005,", "1999,", 1),
+    ]));
+    assert!(f.is_ok(), "{f:?}");
+}
+
+#[test]
+fn dopo_il_ventotto_febbraio_il_messaggio_nomina_tutti_e_due_i_giorni_ammessi() {
+    let errore = fuori_posto(vec![riga_piena(2, 28, 24), riga_piena(3, 2, 1)]);
+    assert!(
+        errore.contains("ci va il 29/2, ora 1 (o il 1/3, ora 1), e c'è il 2/3, ora 1"),
+        "{errore}"
+    );
+    // Only the first hour of 1 March: the second is an hour lost.
+    let errore = fuori_posto(vec![riga_piena(2, 28, 24), riga_piena(3, 1, 2)]);
+    assert!(
+        errore.contains("ci va il 29/2, ora 1 (o il 1/3, ora 1), e c'è il 1/3, ora 2"),
+        "{errore}"
+    );
+}
+
+#[test]
+fn un_febbraio_che_manca_non_passa_per_l_eccezione_del_ventotto() {
+    // 1 March is the hour after the last of 28 February and of nothing else:
+    // not of the 27th, and not of a January with no February after it.
+    let errore = fuori_posto(vec![riga_piena(2, 27, 24), riga_piena(3, 1, 1)]);
+    assert!(
+        errore.contains("ci va il 28/2, ora 1, e c'è il 1/3, ora 1"),
+        "{errore}"
+    );
+    let errore = fuori_posto(vec![riga_piena(1, 31, 24), riga_piena(3, 1, 1)]);
+    assert!(
+        errore.contains("ci va il 1/2, ora 1, e c'è il 1/3, ora 1"),
+        "{errore}"
+    );
+}
+
+#[test]
+fn un_anno_intero_si_legge() {
+    // The file every Corsa is run on: 8760 consecutive hours, and 8784 for the
+    // measured year that has a leap day.
+    assert_eq!(leggi(&epw(anno(28))).unwrap().ore_totali(), 8760);
+    assert_eq!(leggi(&epw(anno(29))).unwrap().ore_totali(), 8784);
+}
+
+#[test]
+fn un_periodo_su_un_file_che_comincia_a_meta_giornata_e_un_errore() {
+    // The file reads: it is hourly, and its second day is whole. A Periodo on
+    // its first day would count hour 13 as Ora 0.
+    // 15 July and not 1 January: a day and a month that differ, so the message
+    // cannot have them the wrong way round.
+    let f = leggi(&epw((13..=24)
+        .map(|ora| riga_piena(7, 15, ora))
+        .chain(giorno_intero(7, 16))
+        .collect()))
     .unwrap();
-    assert_eq!(f.ore_totali(), 2);
+    let errore = f.ore_dal(data(7, 15), 24).unwrap_err();
+    assert!(
+        matches!(errore, ombra::meteo::MeteoError::GiornoMonco { .. }),
+        "variante: {errore:?}"
+    );
+    // The file is hourly: it is this Periodo that does not fit in it.
+    assert!(!errore.non_orario());
+    let errore = errore.to_string();
+    assert!(errore.contains("chiede il 15/7, ora 1"), "{errore}");
+    assert!(errore.contains("porta il 15/7, ora 13"), "{errore}");
+
+    assert_eq!(f.ore_dal(data(7, 16), 24).unwrap().len(), 24);
+}
+
+#[test]
+fn due_mezze_giornate_ai_due_capi_del_file_non_fanno_un_giorno() {
+    // A file cut from noon to noon. A Periodo on its last day runs off the end
+    // at hour 12 and comes back at hour 13 of the first day: the hours are in
+    // a row, and the day is made of two halves two days apart.
+    let f = leggi(&epw((13..=24)
+        .map(|ora| riga_piena(7, 15, ora))
+        .chain(giorno_intero(7, 16))
+        .chain((1..=12).map(|ora| riga_piena(7, 17, ora)))
+        .collect()))
+    .unwrap();
+    let errore = f.ore_dal(data(7, 17), 24).unwrap_err();
+    assert!(
+        matches!(errore, ombra::meteo::MeteoError::GiornoMonco { .. }),
+        "variante: {errore:?}"
+    );
+    let errore = errore.to_string();
+    assert!(errore.contains("chiede il 17/7, ora 13"), "{errore}");
+    assert!(errore.contains("porta il 15/7, ora 13"), "{errore}");
+
+    // The whole day in the middle is still a day.
+    assert_eq!(f.ore_dal(data(7, 16), 24).unwrap().len(), 24);
+}
+
+#[test]
+fn un_periodo_piu_lungo_del_file_fa_piu_di_un_giro() {
+    let f = leggi(&epw(giorno_intero(7, 15).collect())).unwrap();
+    let ore = f.ore_dal(data(7, 15), 49).unwrap();
+    assert_eq!(ore.len(), 49);
+    assert_eq!(ore[48].ora, 1);
+}
+
+#[test]
+fn un_periodo_su_giorni_interi_di_un_file_ritagliato_ha_le_ore_in_fila() {
+    let f = leggi(&epw(giorno_intero(7, 15)
+        .chain(giorno_intero(7, 16))
+        .collect()))
+    .unwrap();
+    let ore = f.ore_dal(data(7, 15), 48).unwrap();
+    for (passo, valori) in ore.iter().enumerate() {
+        assert_eq!(valori.ora as usize, passo % 24 + 1, "passo {passo}");
+    }
+}
+
+#[test]
+fn un_periodo_che_si_avvolge_su_un_file_che_finisce_a_meta_giornata_e_un_errore() {
+    let f = leggi(&epw(giorno_intero(7, 15)
+        .chain((1..=12).map(|ora| riga_piena(7, 16, ora)))
+        .collect()))
+    .unwrap();
+    // Up to the last record there is nothing to say.
+    assert_eq!(f.ore_dal(data(7, 15), 36).unwrap().len(), 36);
+
+    // One more, and the hour after 12 would be hour 1 of the first day.
+    let errore = f.ore_dal(data(7, 15), 37).unwrap_err();
+    assert!(
+        matches!(errore, ombra::meteo::MeteoError::GiornoMonco { .. }),
+        "variante: {errore:?}"
+    );
+    let errore = errore.to_string();
+    assert!(errore.contains("chiede il 16/7, ora 13"), "{errore}");
+    assert!(errore.contains("porta il 15/7, ora 1"), "{errore}");
 }
 
 #[test]

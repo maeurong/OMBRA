@@ -971,10 +971,18 @@ fn un_file_meteo_non_orario_ferma_la_corsa_prima_del_calcolo() {
     mezz_ora[30].2 = "30";
     let mut ripetuta = due_giorni("60");
     ripetuta.insert(30, ripetuta[30]);
+    // Record 30 is hour 7 of 16 July: without it every Ora after it would get
+    // the record of the hour after its own.
+    let mut bucata = due_giorni("0");
+    bucata.remove(30);
+    let mut ora_25 = due_giorni("0");
+    ora_25[30].1 = 25;
 
     for (nome, record, atteso) in [
         ("meteo-a-mezz-ora", mezz_ora, "«30»"),
         ("meteo-ora-ripetuta", ripetuta, "due righe di dati"),
+        ("meteo-con-un-buco", bucata, "ci va il 16/7, ora 7"),
+        ("meteo-ora-25", ora_25, "l'ora è «25»"),
     ] {
         let dir = tempdir_di_prova(nome);
         let epw = scrivi_epw_di(&dir, 1.0, &record);
