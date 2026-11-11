@@ -131,7 +131,9 @@ l'ha tolta, quei testi contano il doppio.
 L'espressione lungo il raggio è la stessa da 0.1.0b1. Da 0.1.0b55 a 0.1.0b98 (i numeri 59, 66,
 69 e 85 non hanno un tag) non sono cambiati nemmeno i testi di `vegetation.rs`. Gli altri due
 gruppi sì: a 0.1.0b86 `compute_ani_lum_from_packed` è passata da `pipeline.rs` a
-`pipeline_radiation.rs`, e a 0.1.0b90 le legature sono diventate due.
+`pipeline_radiation.rs`, e a 0.1.0b90 le legature sono diventate due. Due arresti in quaranta
+tag bastano a tenere in piedi la sostituzione: ogni arresto costa rileggere una regola, ed è il
+meccanismo che lavora.
 
 ### Sul passo intero la condizione regge
 
