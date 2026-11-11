@@ -46,12 +46,13 @@ calcola quell'unica trasmissività, lo decide l'[ADR 0006](0006-chiome-riunite.m
 **`conifer` non entra nel ragionamento.** Nel nucleo Rust al commit pinnato è un campo mai letto:
 vive nella struct degli scalari e nei metadati Python. Non si sostituisce e non si dichiara.
 
-## Aggiornamento, 2026-11-11: la funzione la scriveranno a monte, la sostituzione resta nostra
+## Aggiornamento, 2026-11-11: la funzione l'hanno scritta a monte, la sostituzione resta nostra
 
 Il 10 novembre a monte hanno accettato di scrivere la funzione nominata: la chiusura di
 `compute_timestep` estratta in una funzione con un nome, chiamabile da Rust
-([ADR 0003](0003-catena-radiativa-e-cucitura-a-monte.md), aggiornamento di quel giorno). Uscirà
-con la prossima release, e ancora non esiste.
+([ADR 0003](0003-catena-radiativa-e-cucitura-a-monte.md), aggiornamento di quel giorno). È uscita
+l'11 novembre con la 0.1.0b99, e si chiama `compute_timestep_rust`: lo registra lo stesso ADR,
+nell'aggiornamento dell'11.
 
 L'8 settembre non si chiedeva la trasmissività per cella perché «la mappa non ne dipende»: il
 passo fuso l'avremmo estratto noi, e la sostituzione sarebbe caduta su un testo tagliato da
@@ -69,9 +70,10 @@ ciascuno al suo punto.
 
 **Chiedere due raster sarebbe chiedere a monte questo ADR.** Il loro strato Python calcola un
 valore per giorno dell'anno e riempirebbe il raster con una costante. Dovrebbero cambiare anche
-lo shader GPU, che riceve la trasmissività come parametro, nella release in cui l'estrazione
-della funzione deve lasciare identiche byte per byte le loro uscite di riferimento (golden) e
-di parità ([UMEP-dev/solweig#14](https://github.com/UMEP-dev/solweig/issues/14)). Il valore per
+lo shader GPU, che riceve la trasmissività come parametro. Al momento del ticket la
+modifica sarebbe caduta nella release in cui l'estrazione della funzione doveva lasciare
+identiche byte per byte le loro uscite di riferimento (golden) e di parità
+([UMEP-dev/solweig#14](https://github.com/UMEP-dev/solweig/issues/14)). Il valore per
 giorno dell'anno l'abbiamo letto nel sorgente di `UMEP-dev/solweig`. L'implementazione di
 riferimento è ora `UMEP-dev/umep-solweig`, e lì resta da leggere.
 
@@ -79,7 +81,7 @@ riferimento è ora `UMEP-dev/umep-solweig`, e lì resta da leggere.
 `estrai.py` dovrà passare su `pipeline.rs`, chiunque abbia scritto la funzione.
 
 Per ora a monte non si manda nessuna richiesta sulla trasmissività. Se servirà parlarne, lo
-farà Mario su UMEP-dev/solweig#14, quando uscirà la release.
+farà Mario.
 
 ### Il conteggio era sbagliato
 
@@ -89,18 +91,21 @@ chiamate, compresa quella dietro la feature `gpu`, che non si tocca. Saltava fir
 delle due funzioni che lo ricevono. Questo ADR non diceva cosa contasse: la ricostruzione è
 della [ricerca sul passo fuso](../ricerca/01-passo-fuso.md), ed è un'inferenza.
 
-Al pin `c31c575` (0.1.0b98) la sostituzione toccherà undici righe in tre file:
+Al pin `41840b7` (0.1.0b101) la sostituzione toccherà undici righe in tre file. Il conto era
+stato fatto a 0.1.0b98 (`c31c575`): al pin le undici righe hanno lo stesso testo, rientro a
+parte, e in `pipeline.rs` e `pipeline_radiation.rs` si sono spostate.
 
 | File | Cosa | N. righe |
 |---|---|---|
-| `pipeline.rs` | l'espressione lungo il raggio (`:756`) | 1 |
-| `pipeline.rs` | le due legature verso il cielo (`:838`, `:1395`) | 2 |
-| `pipeline_radiation.rs` | firma e corpo di `compute_ani_lum_from_packed` (`:378`, `:402`, `:421`) | 3 |
+| `pipeline.rs` | l'espressione lungo il raggio (`:679`) | 1 |
+| `pipeline.rs` | le due legature verso il cielo (`:761`, `:1318`) | 2 |
+| `pipeline_radiation.rs` | firma e corpo di `compute_ani_lum_from_packed` (`:379`, `:403`, `:422`) | 3 |
 | `vegetation.rs` | firma e corpo di `kside_veg_isotropic_pure` (`:363`, `:413`, `:415`, `:417`, `:419`) | 5 |
 
-Undici conta solo le righe da sostituire. L'ingresso dei due raster nella funzione si conterà
-quando la firma di monte esisterà: `weather.psi` è un `f32`, e due raster entrano solo da
-parametri o campi nuovi.
+Undici conta solo le righe da sostituire. L'ingresso dei due raster nella funzione non è
+contato: `weather.psi` è un `f32`, e due raster entrano solo da parametri o campi nuovi. La
+firma di monte c'è, e da dove i due raster entrino resta da decidere nella mappa della catena
+radiativa.
 
 **Si sostituiscono le legature, non le chiamate.** Cambiate le due `let psi = weather.psi;`, le
 quattro chiamate fuori dalla feature `gpu` che ne leggono il nome seguono da sole. Due delle
@@ -119,21 +124,21 @@ decidere: `WeatherScalars` è una `#[pyclass]`, e `estrai.py` toglie quegli elem
 se una regola non li dichiara da tenere. I nomi decisi lì per i due raster restano:
 `trasmissivita_raggio_v` e `trasmissivita_cielo_v`.
 
-**`estrai.py` non ha ancora le regole per queste undici righe**: si scriveranno quando la
-funzione nominata sarà in un tag. Ciascuna dichiarerà quante volte deve trovare il proprio
+**`estrai.py` non ha ancora le regole per queste undici righe**: si scriveranno con
+l'estrazione del passo. Ciascuna dichiarerà quante volte deve trovare il proprio
 testo, e lo script si fermerà al primo conteggio che non torna, come già fa con il dizionario
 `SOSTITUZIONI`. In `vegetation.rs` il numero da dichiarare dipende dall'ordine delle passate di
 `estrai.py`: la gemella di `kside_veg_isotropic_pure`, `#[pyfunction] kside_veg`, porta la
 stessa riga di parametro e, nel corpo, lo stesso testo quattro volte. Finché l'estrazione non
 l'ha tolta, quei testi contano il doppio.
 
-**Negli ultimi quaranta tag una regola a conteggio avrebbe fermato lo script due volte.**
-L'espressione lungo il raggio è la stessa da 0.1.0b1. Da 0.1.0b55 a 0.1.0b98 (i numeri 59, 66,
-69 e 85 non hanno un tag) non sono cambiati nemmeno i testi di `vegetation.rs`. Gli altri due
-gruppi sì: a 0.1.0b86 `compute_ani_lum_from_packed` è passata da `pipeline.rs` a
-`pipeline_radiation.rs`, e a 0.1.0b90 le legature sono diventate due. Due arresti in quaranta
-tag bastano a tenere in piedi la sostituzione: ogni arresto costa rileggere una regola, ed è il
-meccanismo che lavora.
+**Nei trentasette tag da 0.1.0b55 a 0.1.0b98 una regola a conteggio avrebbe fermato lo script
+due volte.** L'espressione lungo il raggio è la stessa da 0.1.0b1. Da 0.1.0b55 a 0.1.0b98 (i
+numeri 59, 66, 69 e da 85 a 88 non hanno un tag) non sono cambiati nemmeno i testi di
+`vegetation.rs`. Gli altri due gruppi sì: fra i tag 0.1.0b84 e 0.1.0b89
+`compute_ani_lum_from_packed` è passata da `pipeline.rs` a `pipeline_radiation.rs`, e a
+0.1.0b90 le legature sono diventate due. Due arresti in trentasette tag bastano a tenere in
+piedi la sostituzione: ogni arresto costa rileggere una regola, ed è il meccanismo che lavora.
 
 ### Sul passo intero la condizione regge
 
@@ -153,6 +158,7 @@ per cella.
 
 **Cosa la misura lascia fuori**:
 
+- il pin: la misura è a 0.1.0b98, e a 0.1.0b101 non è stata rifatta;
 - `estrai.py` e la funzione nominata: la sostituzione è fatta a mano nella chiusura di
   `compute_timestep`;
 - due raster diversi fra loro: i due provati hanno sempre lo stesso contenuto, e uno scambio
@@ -165,5 +171,5 @@ per cella.
 Gli script della misura stanno fuori dal repository, in una cartella di sessione: per ripetere
 la misura vanno riscritti.
 
-Il test della condizione resta a carico nostro: si scriverà nel repository quando la funzione
-nominata sarà in un tag.
+Il test della condizione resta a carico nostro e non è ancora scritto. La funzione nominata è
+in un tag: il test si può scrivere.
