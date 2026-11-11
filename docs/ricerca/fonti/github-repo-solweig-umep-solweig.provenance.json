@@ -1,0 +1,1 @@
+{"derived_from": {"path": "https://api.github.com/repos/UMEP-dev/solweig + https://api.github.com/repos/UMEP-dev/umep-solweig", "sha256": "0491f235bc5c1db5b0cbfddfa7ac27514ca55301f3bbd498488c41d1ebfd1bac", "bytes": 1715}, "tool": "gh api", "tool_version": "2.103.3", "extracted": "2026-11-11"}
