@@ -12,6 +12,13 @@ on:
     # 06:00 UTC on the first day of January, May and September.
     - cron: "0 6 1 1,5,9 *"
   workflow_dispatch:
+  # A hand edit to the vendored code must fail in the pull request that makes
+  # it, not up to four months later. Only the reproducibility job runs here:
+  # the upstream job opens issues, and a pull request is no reason to.
+  pull_request:
+    paths:
+      - "vendor/solweig/**"
+      - ".github/workflows/vendor-check.yml"
 
 permissions:
   contents: read
@@ -27,6 +34,9 @@ jobs:
   riproducibile:
     name: l'estrazione si rifa uguale
     runs-on: ubuntu-latest
+    # It runs the pull request's own estrai.py, so it gets no write scope.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +62,7 @@ jobs:
 
   upstream:
     name: has the kernel moved
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
