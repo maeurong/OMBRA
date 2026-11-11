@@ -16,7 +16,7 @@
 
 use crate::dominio::{Griglia, Periodo, Posizione, Rettangolo, Scenario, TipoSuperficie};
 use crate::specie;
-use ndarray::Array2;
+use ndarray::{Array2, Zip};
 use std::fmt;
 use std::ops::Range;
 
@@ -164,6 +164,65 @@ impl StratoDiChioma {
 
     fn ha_chiome(&self) -> bool {
         self.chiome.iter().any(|v| !v.is_nan())
+    }
+}
+
+/// Every canopy of every layer on one raster: the single canopy geometry the
+/// Motore marches when it needs the sky all the layers cover together.
+///
+/// Not a [`StratoDiChioma`]: it has no transmissivity, because the canopies in
+/// it do not share one.
+///
+/// Where two layers have a canopy on the same cell this keeps the tallest top
+/// and the *lowest* trunk zone, which is not the rule `StratoDiChioma::posa`
+/// applies inside a layer, where the trunk zone follows the taller canopy. The
+/// envelope is what makes the pass over this raster cover every patch of sky
+/// that some layer covers: with the taller canopy's own trunk zone it leaves
+/// open what the lower canopy fills, measured in
+/// `docs/ricerca/03-chiome-riunite.md`, M2 and M3.
+///
+/// The envelope also closes the gap between two canopies that stand one above
+/// the other on a cell: sky seen through the gap counts as covered. How much
+/// that weighs is not measured, and ADR 0006 says so.
+///
+/// A function of the layers and not a raster the Derivazione stores, so it
+/// cannot drift from the layers it is asked about.
+#[derive(Debug)]
+pub struct ChiomeRiunite {
+    /// Canopy top, absolute, `f32::NAN` where no layer has a tree.
+    pub chiome: Raster,
+    /// Top of the trunk zone, absolute, with the same `f32::NAN` convention.
+    pub zona_tronco: Raster,
+}
+
+impl ChiomeRiunite {
+    /// The canopies of `strati` on one raster, `None` when there is no layer.
+    ///
+    /// # Panics
+    ///
+    /// If the layers do not all have the same shape. The Derivazione builds
+    /// them all on the Griglia, so no Progetto gets here.
+    pub fn da_strati(strati: &[StratoDiChioma]) -> Option<Self> {
+        let (primo, resto) = strati.split_first()?;
+        let mut riunite = Self {
+            chiome: primo.chiome.clone(),
+            zona_tronco: primo.zona_tronco.clone(),
+        };
+        for strato in resto {
+            // `f32::max` and `f32::min` hand back the operand that is not NaN:
+            // a cell only one layer has a tree on keeps that tree, and a cell
+            // with no tree in any layer stays NaN.
+            //
+            // `Zip` and not `zip_mut_with`, which would stretch a layer of
+            // another shape over this one instead of refusing it.
+            Zip::from(&mut riunite.chiome)
+                .and(&strato.chiome)
+                .for_each(|cima, &altra| *cima = cima.max(altra));
+            Zip::from(&mut riunite.zona_tronco)
+                .and(&strato.zona_tronco)
+                .for_each(|tronco, &altro| *tronco = tronco.min(altro));
+        }
+        Some(riunite)
     }
 }
 

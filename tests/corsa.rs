@@ -674,9 +674,10 @@ fn il_giornale_registra_ingressi_versioni_scelte_e_inviluppi() {
         Some(motore::versione().commit.as_str())
     );
     // Written out and not read from the build: the Impronta takes the version
-    // and not the convention of the sun, so the version that moved the sun to
-    // the centre of the Ora is a number this test has to name.
-    assert_eq!(tabella["binario"]["versione"].as_str(), Some("0.2.0"));
+    // and not the way a field is computed, so the version that stopped
+    // counting twice the sky two canopy layers share is a number this test
+    // has to name.
+    assert_eq!(tabella["binario"]["versione"].as_str(), Some("0.3.0"));
     assert_eq!(tabella["griglia"]["nx"].as_integer(), Some(6));
     assert_eq!(
         tabella["derivazione"]["celle_costruite"].as_integer(),

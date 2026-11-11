@@ -595,11 +595,14 @@ fn inviluppi(campi: &Campi, raster: &RasterDiScenario, ore: u32) -> Vec<Invilupp
         "adimensionale",
         campi.sky_view_factor.con_le_chiome.iter().copied(),
         (0.0, 1.0),
-        "Lo stesso, meno quello che ogni Strato di chioma toglie, pesato per la \
-         sua trasmissività. Due strati che coprono la stessa porzione di cielo la \
-         contano due volte, perché il Motore dice se una cella vede il cielo \
-         attraverso la vegetazione, mai attraverso quale: il campo è troncato a \
-         zero e mai negativo.",
+        "Lo stesso, meno la parte di volta che le chiome coprono e non lasciano \
+         passare. Della volta coperta da un solo Strato di chioma passa una quota \
+         pari alla sua trasmissività; di quella coperta da due, il prodotto delle \
+         due trasmissività. Con due Strati il Motore fa tre passate, una per \
+         Strato e una sulle Chiome riunite, cioè tutte le chiome in una sola \
+         geometria: la differenza fra le tre dice quanta volta copre solo il \
+         primo Strato, solo il secondo, entrambi. Con uno Strato solo la passata \
+         è una.",
     ));
     campi_citati.push(inviluppo(
         "frazione illuminata media",

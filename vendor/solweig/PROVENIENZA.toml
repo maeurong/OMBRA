@@ -234,19 +234,31 @@ meritare un test che la fissi.
 
 Sul caso di riferimento, in estate: gli edifici lasciano lo 0,9189 del cielo, le
 chiome dello stato di fatto portano la media a 0,6276 e quelle degli interventi
-a 0,4291. In inverno, con le latifoglie a trasmissivita' 0,5, 0,7064 e 0,5934.
+a 0,4291. In inverno, con le latifoglie a trasmissivita' 0,5: 0,7104 e 0,6077
+dalla 0.3.0, che non conta piu' due volte la volta coperta da entrambi gli
+strati di chioma; alla 0.2.0 erano 0,7064 e 0,5934.
 """
 tempo_sky_view_factor = """
-Da 32 a 63 ms per Corsa sul caso di riferimento, 50x50 celle: uno strato di
-chioma d'estate, due d'inverno, un passaggio sui 153 patch del cielo per strato.
-Le quattro Corse complete passano da 0,25 a 0,47 s contro un budget di 60.
+Alla 0.2.0, da 32 a 63 ms per Corsa sul caso di riferimento, 50x50 celle: uno
+strato di chioma d'estate, due d'inverno, un passaggio sui 153 patch del cielo
+per strato. Le quattro Corse complete passano da 0,25 a 0,47 s contro un budget
+di 60.
+
+Dalla 0.3.0 con due strati le passate sono tre: la terza va sulle Chiome
+riunite. Misurato come tempo di CPU per chiamata, su una macchina carica e con
+le due versioni alternate: d'inverno da 60 a 102 ms nello stato di fatto e da 74
+a 107 negli interventi, d'estate 33-36 ms in entrambe le versioni. La terza
+passata costa quindi da 33 a 42 ms a ogni Corsa invernale. A macchina quieta non
+e' stato rimisurato, e nemmeno il totale delle quattro Corse.
 
 **Questo cambia una premessa della spec.** La misura su cui era stata decisa la
 cache dello sky view factor — 29-36 s su sola CPU, collo di bottiglia del caso
 completo — veniva dal percorso Python con il pool rayon predefinito. Con il pool
 a un thread e un dominio di 2500 celle il costo e' quattro ordini di grandezza
-piu' basso, e una cache per geometria risparmierebbe 0,19 s su 60. Non si
-costruisce finche' un dominio piu' grande non la chiede.
+piu' basso, e alla 0.2.0 una cache per geometria risparmierebbe 0,19 s su 60.
+Con la terza passata delle due Corse invernali il conto sale di meno di un
+decimo di secondo. Non si costruisce finche' un dominio piu' grande non la
+chiede.
 """
 geometria = """
 Torre di 10 m al centro di un dominio piano 25x25 a passo 1 m, sole a sud a 45

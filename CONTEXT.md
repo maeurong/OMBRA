@@ -79,7 +79,7 @@ Quanta radiazione diffusa dalla volta celeste arriva a una cella attraverso le c
 _Avoid_: psi del cielo, trasmissività statica
 
 **Sky view factor**:
-Quanta parte della volta celeste una cella vede. Resta in inglese, come ogni termine tecnico del dominio. Il Giornale ne riporta due: quello che lasciano edifici e terreno, e quello che resta tolto ciò che ogni Strato di chioma copre, pesato per la sua trasmissività. Non dipende dall'ora, quindi è una proprietà dello Scenario e non della Corsa.
+Quanta parte della volta celeste una cella vede. Resta in inglese, come ogni termine tecnico del dominio. Il Giornale ne riporta due: quello che lasciano edifici e terreno, e quello con le chiome, che al primo toglie la parte di volta che le chiome coprono e non lasciano passare. Della volta coperta da un solo Strato di chioma passa una quota pari alla sua trasmissività; di quella coperta da due, il prodotto delle due trasmissività. Non dipende dall'ora, quindi è una proprietà dello Scenario e non della Corsa.
 _Avoid_: fattore di vista del cielo, SVF esteso, apertura del cielo
 
 **Modello di cielo**:
