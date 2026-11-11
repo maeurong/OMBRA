@@ -204,10 +204,6 @@ a monte, il 10 novembre, che il quarto punto non lo chiede. Dopo ADR 0002 è nat
 ragione: [ADR 0004](0004-psi-per-cella.md) ha deciso che nella copia `psi` cambierà
 significato, e una dipendenza dal crate quella modifica non la porterebbe.
 
-L'aggiornamento di ADR 0004 che porta la stessa data di questo è stato scritto prima della
-release. Dove dice che la funzione nominata «ancora non esiste», e dove rimanda a quando
-«sarà in un tag», ora la funzione c'è.
-
 **Cambia come si prende il passo.** `estrai.py` lo prenderà da una funzione con un nome, come
 già fa per le ombre e per lo sky view factor. Il ripiego descritto sopra, il taglio di
 `compute_timestep` per marcatori, non serve più e non si costruisce.
