@@ -1,4 +1,3 @@
-use core::f32;
 use ndarray::{s, Array2, Array3, ArrayView2, Zip};
 #[cfg(feature = "gpu")]
 use std::collections::VecDeque;

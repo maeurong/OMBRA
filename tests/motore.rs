@@ -294,8 +294,8 @@ fn una_griglia_di_una_cella_funziona() {
 #[test]
 fn la_versione_riporta_il_commit_vendorato() {
     let v = versione();
-    assert_eq!(v.commit, "c31c5758236078b6b5f7bc9a931e2fce264bfc88");
-    assert_eq!(v.data_presa, "2026-11-10");
+    assert_eq!(v.commit, "41840b74cd7c003f88dbde0c30fff736cb51bd5d");
+    assert_eq!(v.data_presa, "2026-11-11");
 }
 
 #[test]
