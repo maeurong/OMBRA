@@ -22,9 +22,11 @@ entrerà.
 
 **Dalla 0.2.0 il binario calcola il sole al centro dell'Ora e rifiuta un file meteo con un minuto
 diverso da 0 e da 60, o con due record per la stessa ora.** Alla 0.1.0 il sole è all'inizio
-dell'Ora e il campo minuto non viene letto. Nessuna delle due versioni abbina un record meteo a
-un'Ora: l'abbinamento, e ciò che qui sotto è scritto al futuro, arriveranno con la catena
-radiativa.
+dell'Ora e il campo minuto non viene letto. Il lettore rifiuta anche un mese, un giorno o un'ora
+che non sono un numero intero del calendario, e un record che non è l'ora successiva a quello
+che lo precede: questi due controlli sono entrati dopo il commit della 0.2.0, senza cambiare la
+versione. Nessuna delle due versioni abbina un record meteo a un'Ora: l'abbinamento, e ciò che
+qui sotto è scritto al futuro, arriveranno con la catena radiativa.
 
 ## Perché non le alternative
 
@@ -65,14 +67,32 @@ Motore.
 nel record.** Il centro cade di notte, la media oraria no. Come a monte si tratta quell'Ora non
 è stato ancora letto: è annotato nella mappa fra le cose da verificare.
 
-**Dalla 0.2.0 il file meteo deve essere orario, e OMBRA lo controlla in parte.** Alla 0.1.0 non
+**Dalla 0.2.0 il file meteo deve essere orario, e il lettore lo controlla.** Alla 0.1.0 non
 legge il campo minuto, e un file sub-orario viene letto senza errori. Dalla 0.2.0 un file è
-accettato se nessuna ora ha più di un record e il minuto è sempre 0 o 60: OMBRA prende l'ora dal
-campo ora, e il Giornale annota i valori che il campo minuto assume nel file. Più record per la
-stessa ora, o un altro minuto, sono un errore detto prima che il Motore calcoli qualcosa. Le ore
-mancanti non sono rilevate: un file con un record ogni tre ore e il minuto a 0 è accettato.
-L'abbinamento fissato qui sopra conta i record, e con un buco darebbe a un'Ora il record di
-un'altra: è annotato nella mappa fra le cose da chiudere prima dell'abbinamento. OMBRA accetta i
-file con minuto 60, che il dizionario EPW dichiara validi e che a monte, al commit letto dalla
-ricerca, vengono scartati; per confrontarli il test di parità darà a monte una copia con il
-minuto a 0.
+accettato solo se nessuna ora ha più di un record e il minuto è sempre 0 o 60: OMBRA prende
+l'ora dal campo ora, e il Giornale annota i valori che il campo minuto assume nel file. Più
+record per la stessa ora, o un altro minuto, sono un errore detto prima che il Motore calcoli
+qualcosa. OMBRA accetta i file con minuto 60, che il dizionario EPW dichiara validi e che a
+monte, al commit letto dalla ricerca, vengono scartati; per confrontarli il test di parità darà
+a monte una copia con il minuto a 0.
+
+**Un file a cui mancano delle ore ferma la Corsa.** L'abbinamento fissato qui sopra conta i
+record, e con un buco darebbe a un'Ora il record di un'altra. Il lettore rifiuta quindi un
+record che non è l'ora successiva a quello che lo precede: sia quando mancano delle ore, sia
+quando sono fuori ordine. L'anno non entra nel confronto: un file di più anni passa dal 31
+dicembre al primo gennaio, e così un anno tipo cucito con mesi di anni diversi. Dopo il 28
+febbraio passano sia il 29 sia il primo marzo, e il 29 febbraio è accettato senza chiedere se
+l'anno scritto sul record è bisestile. Il lettore rifiuta anche un mese, un giorno o un'ora che
+non sono un numero intero o che il calendario non ha: mese 13, 31 aprile, ora 0, ora 13.5. L'ora
+va da 1 a 24, e un file che la numera da 0 a 23 non dice se l'ora 0 è l'inizio o la fine del suo
+intervallo. Un campo che non è un numero è trattato come uno fuori calendario. Sono errori detti
+prima che il Motore calcoli qualcosa, come quello sul minuto. Questo controllo e quello della
+sequenza non hanno cambiato la versione: non spostano nessun numero calcolato, cambiano quali
+file sono rifiutati.
+
+**Un file ritagliato da un anno si legge, e il giorno a metà lo rileva `ore_dal` quando un
+Periodo ci arriva.** Che un file cominci o finisca a metà di un giorno non è un errore di
+lettura. `ore_dal` serve i record di un Periodo dal primo record del suo primo giorno: se non
+portano le ore 1, 2, … 24 in fila restituisce un errore, e lo stesso fa quando il Periodo supera
+la fine di un file che non finisce all'ora 24 o non comincia all'ora 1. Nessuna Corsa la chiama
+ancora: lo farà l'abbinamento.
