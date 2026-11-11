@@ -132,13 +132,13 @@ testo, e lo script si fermerà al primo conteggio che non torna, come già fa co
 stessa riga di parametro e, nel corpo, lo stesso testo quattro volte. Finché l'estrazione non
 l'ha tolta, quei testi contano il doppio.
 
-**Negli ultimi quaranta tag una regola a conteggio avrebbe fermato lo script due volte.**
-L'espressione lungo il raggio è la stessa da 0.1.0b1. Da 0.1.0b55 a 0.1.0b98 (i numeri 59, 66,
-69 e 85 non hanno un tag) non sono cambiati nemmeno i testi di `vegetation.rs`. Gli altri due
-gruppi sì: a 0.1.0b86 `compute_ani_lum_from_packed` è passata da `pipeline.rs` a
-`pipeline_radiation.rs`, e a 0.1.0b90 le legature sono diventate due. Due arresti in quaranta
-tag bastano a tenere in piedi la sostituzione: ogni arresto costa rileggere una regola, ed è il
-meccanismo che lavora.
+**Nei trentasette tag da 0.1.0b55 a 0.1.0b98 una regola a conteggio avrebbe fermato lo script
+due volte.** L'espressione lungo il raggio è la stessa da 0.1.0b1. Da 0.1.0b55 a 0.1.0b98 (i
+numeri 59, 66, 69 e da 85 a 88 non hanno un tag) non sono cambiati nemmeno i testi di
+`vegetation.rs`. Gli altri due gruppi sì: fra i tag 0.1.0b84 e 0.1.0b89
+`compute_ani_lum_from_packed` è passata da `pipeline.rs` a `pipeline_radiation.rs`, e a
+0.1.0b90 le legature sono diventate due. Due arresti in trentasette tag bastano a tenere in
+piedi la sostituzione: ogni arresto costa rileggere una regola, ed è il meccanismo che lavora.
 
 ### Sul passo intero la condizione regge
 
