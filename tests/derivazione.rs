@@ -3,8 +3,8 @@
 //! `src/derivazione.rs`, and each test fails if that rule is dropped.
 
 use ombra::derivazione::{
-    deriva, Raster, RasterDiScenario, Stagione, StratoDiChioma, CLASSE_ACQUA, CLASSE_ERBA,
-    CLASSE_NESSUNA, CLASSE_PAVIMENTATO, CLASSE_TERRENO_NUDO, TRASMISSIVITA_CON_FOGLIE,
+    deriva, ChiomeRiunite, Raster, RasterDiScenario, Stagione, StratoDiChioma, CLASSE_ACQUA,
+    CLASSE_ERBA, CLASSE_NESSUNA, CLASSE_PAVIMENTATO, CLASSE_TERRENO_NUDO, TRASMISSIVITA_CON_FOGLIE,
     TRASMISSIVITA_SENZA_FOGLIE,
 };
 use ombra::dominio::*;
@@ -674,4 +674,70 @@ fn il_caso_di_riferimento_deriva_in_entrambe_le_stagioni() {
         assert!(invernale.scelte.chiome_spogliate > 0);
         assert_eq!(estivo.scelte.chiome_spogliate, 0);
     }
+}
+
+// --- Chiome riunite ---------------------------------------------------------
+
+/// A canopy layer written by hand on one row: per cell the canopy top and the
+/// top of the trunk zone, or `None` where the layer has no tree.
+fn strato_a_mano(celle: &[Option<(f32, f32)>]) -> StratoDiChioma {
+    let riga = |quale: fn((f32, f32)) -> f32| {
+        Raster::from_shape_fn((1, celle.len()), |(_, colonna)| {
+            celle[colonna].map_or(f32::NAN, quale)
+        })
+    };
+    StratoDiChioma {
+        nome: "prova",
+        trasmissivita: TRASMISSIVITA_CON_FOGLIE,
+        chiome: riga(|(chioma, _)| chioma),
+        zona_tronco: riga(|(_, tronco)| tronco),
+    }
+}
+
+/// The cells of a raster with the empty ones told apart from every number:
+/// `==` on the rasters themselves would call two empty cells different.
+fn celle(r: &Raster) -> Vec<Option<f32>> {
+    r.iter().map(|&v| (!v.is_nan()).then_some(v)).collect()
+}
+
+#[test]
+fn le_chiome_riunite_tengono_la_cima_piu_alta_e_la_zona_tronco_piu_bassa() {
+    // Not the rule of two trees in one layer, where the trunk zone follows the
+    // taller canopy: by that rule the first cell would read 8, and everything
+    // between 3 and 8 metres that the lower canopy fills would be open air.
+    let a = strato_a_mano(&[Some((10.0, 3.0)), Some((10.0, 3.0)), None, None]);
+    let b = strato_a_mano(&[Some((14.0, 8.0)), None, Some((6.0, 2.0)), None]);
+
+    let riunite = ChiomeRiunite::da_strati(&[a.clone(), b.clone()])
+        .expect("due Strati di chioma hanno delle Chiome riunite");
+    assert_eq!(
+        celle(&riunite.chiome),
+        [Some(14.0), Some(10.0), Some(6.0), None]
+    );
+    assert_eq!(
+        celle(&riunite.zona_tronco),
+        [Some(3.0), Some(3.0), Some(2.0), None]
+    );
+
+    let girate =
+        ChiomeRiunite::da_strati(&[b, a]).expect("due Strati di chioma hanno delle Chiome riunite");
+    assert_eq!(
+        (celle(&girate.chiome), celle(&girate.zona_tronco)),
+        (celle(&riunite.chiome), celle(&riunite.zona_tronco)),
+        "le Chiome riunite dipendono dall'ordine degli Strati"
+    );
+}
+
+#[test]
+fn senza_strati_non_ci_sono_chiome_riunite_e_con_uno_solo_sono_le_sue() {
+    assert!(
+        ChiomeRiunite::da_strati(&[]).is_none(),
+        "delle Chiome riunite senza nessuno Strato di chioma"
+    );
+
+    let solo = strato_a_mano(&[Some((10.0, 3.0)), None]);
+    let riunite = ChiomeRiunite::da_strati(std::slice::from_ref(&solo))
+        .expect("uno Strato di chioma ha delle Chiome riunite");
+    assert_eq!(celle(&riunite.chiome), celle(&solo.chiome));
+    assert_eq!(celle(&riunite.zona_tronco), celle(&solo.zona_tronco));
 }

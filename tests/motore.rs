@@ -6,7 +6,8 @@
 //! north clockwise, as everywhere else in the project.
 
 use ombra::derivazione::{
-    Raster, StratoDiChioma, TRASMISSIVITA_CON_FOGLIE, TRASMISSIVITA_SENZA_FOGLIE,
+    ChiomeRiunite, Raster, Stagione, StratoDiChioma, TRASMISSIVITA_CON_FOGLIE,
+    TRASMISSIVITA_SENZA_FOGLIE,
 };
 use ombra::dominio::Data;
 use ombra::motore::{ombre, sky_view_factor, versione, SkyViewFactor, ALTEZZA_MINIMA_GRADI};
@@ -750,11 +751,14 @@ fn un_secondo_strato_toglie_altro_cielo_e_non_ne_restituisce() {
 
     let uno = cielo(&piatto, std::slice::from_ref(&primo));
     let due = cielo(&piatto, &[primo, secondo]);
+    // With two layers the deduction is rebuilt from three fields, each a sum
+    // of patch weights in f32: where the second layer takes nothing the two
+    // answers agree to rounding, not to the bit.
     assert!(
         due.con_le_chiome
             .iter()
             .zip(uno.con_le_chiome.iter())
-            .all(|(&d, &u)| d <= u),
+            .all(|(&d, &u)| d <= u + 1e-6),
         "un secondo strato ha restituito cielo invece di toglierne"
     );
     assert!(
@@ -795,5 +799,264 @@ fn nel_caso_di_riferimento_lo_scenario_piantumato_vede_meno_cielo() {
         "lo Scenario con più alberi vede più cielo: {} contro {}",
         media(&interventi.con_le_chiome),
         media(&fatto.con_le_chiome)
+    );
+}
+
+/// The bits of a field folded into one number, in row order: two fields that
+/// fold to the same number are, for the purpose of a test, the same bits.
+fn bit_ripiegati(campo: &Raster) -> u64 {
+    campo.iter().fold(0u64, |h, v| {
+        h.wrapping_mul(31).wrapping_add(u64::from(v.to_bits()))
+    })
+}
+
+#[test]
+#[cfg_attr(
+    not(all(target_os = "macos", target_arch = "aarch64")),
+    ignore = "valori catturati su aarch64-apple-darwin: il nucleo chiama sin, cos e tan della libm di sistema, e su un'altra piattaforma i bit possono differire senza che il calcolo sia cambiato. Forzato con --include-ignored fuori da lì, può fallire per questo soltanto"
+)]
+fn con_uno_strato_e_con_nessuno_i_bit_sono_quelli_della_0_2_0() {
+    // ADR 0006 promises that one canopy layer, and none, compute what they
+    // computed at 0.2.0: the third pass, over the Chiome riunite, is for two
+    // layers only. The four numbers below were captured on
+    // aarch64-apple-darwin from the code at commit `080ddf8`, which is 0.2.0
+    // and has no such pass. The test runs on that platform alone: elsewhere
+    // it is reported as ignored, never as passed. If this fails after a
+    // change to `sky_view_factor`, the single-layer arithmetic has moved, and
+    // every summer Corsa already published has moved with it.
+    let lato = 31;
+    let mut dsm = torre(lato, 0.0);
+    for riga in 4..9 {
+        for colonna in 20..27 {
+            dsm[[riga, colonna]] = 8.0;
+        }
+    }
+    let strato = bosco("chiome", TRASMISSIVITA_CON_FOGLIE, lato, 3, 12.0);
+
+    let nessuno = cielo(&dsm, &[]);
+    let uno = cielo(&dsm, std::slice::from_ref(&strato));
+    assert_eq!(
+        [
+            bit_ripiegati(&nessuno.senza_chiome),
+            bit_ripiegati(&nessuno.con_le_chiome),
+            bit_ripiegati(&uno.senza_chiome),
+            bit_ripiegati(&uno.con_le_chiome),
+        ],
+        [
+            15_638_548_197_624_121_658,
+            15_638_548_197_624_121_658,
+            15_638_548_197_624_121_658,
+            8_000_138_042_159_783_221,
+        ],
+        "i bit dello sky view factor con nessuno Strato o con uno solo non sono più quelli \
+         della 0.2.0"
+    );
+}
+
+// --- Two canopy layers and the Chiome riunite -------------------------------
+//
+// ADR 0006. The expected means with two layers are the measurements of
+// `docs/ricerca/03-chiome-riunite.md`, table M3, row «differenza fra i tre
+// campi»: they agree with a patch-by-patch count on the kernel's own bits to
+// better than 1e-6. They were measured on aarch64-apple-darwin, and the
+// tolerances leave room for a patch or two that another libm might flip.
+
+#[test]
+fn nel_caso_di_riferimento_il_cielo_con_le_chiome_ha_i_valori_misurati() {
+    // The winter numbers are the ones a sum of the two layers' deductions
+    // cannot give: it counts twice the sky both layers cover and lands on
+    // 0.706417 and 0.593398, row «somma per Strato» of the same table. The
+    // summer ones have a single layer and must not have moved from 0.2.0:
+    // they are what the code at commit `080ddf8` gives.
+    let progetto = ombra::progetto::leggi("casi/bastia/progetto").unwrap();
+    let media_con_le_chiome = |nome: &str, stagione: Stagione| {
+        let periodo = progetto
+            .periodi
+            .iter()
+            .find(|periodo| Stagione::da_periodo(periodo) == stagione)
+            .expect("il caso di riferimento porta un Periodo per stagione");
+        let scenario = progetto
+            .scenari
+            .iter()
+            .find(|s| s.nome == nome)
+            .expect("il caso di riferimento porta questo Scenario");
+        let raster = ombra::derivazione::deriva(&progetto.griglia, scenario, periodo).unwrap();
+        let visibile = sky_view_factor(
+            &raster.modello_di_superficie,
+            progetto.griglia.passo_m,
+            &raster.strati_di_chioma,
+        )
+        .unwrap();
+        media(&visibile.con_le_chiome)
+    };
+    for (nome, stagione, atteso) in [
+        ("stato-di-fatto", Stagione::SenzaFoglie, 0.710361),
+        ("interventi", Stagione::SenzaFoglie, 0.607712),
+        ("stato-di-fatto", Stagione::ConFoglie, 0.627570),
+        ("interventi", Stagione::ConFoglie, 0.429054),
+    ] {
+        let misurato = media_con_le_chiome(nome, stagione);
+        assert!(
+            (misurato - atteso).abs() < 5e-5,
+            "Scenario «{nome}», {stagione:?}: sky view factor medio con le chiome {misurato:.6}, \
+             atteso {atteso}"
+        );
+    }
+}
+
+/// A canopy layer with one crown on rows 18..=22 and the given columns of the
+/// 41 x 41 test domains of `docs/ricerca/03-chiome-riunite.md`.
+fn blocco(
+    nome: &'static str,
+    trasmissivita: f32,
+    colonne: std::ops::RangeInclusive<usize>,
+    chioma: f32,
+    tronco: f32,
+) -> StratoDiChioma {
+    let mut chiome = Raster::from_elem((41, 41), f32::NAN);
+    let mut zona_tronco = Raster::from_elem((41, 41), f32::NAN);
+    for riga in 18..=22 {
+        for colonna in colonne.clone() {
+            chiome[[riga, colonna]] = chioma;
+            zona_tronco[[riga, colonna]] = tronco;
+        }
+    }
+    StratoDiChioma {
+        nome,
+        trasmissivita,
+        chiome,
+        zona_tronco,
+    }
+}
+
+#[test]
+fn due_strati_staccati_non_contano_due_volte_il_cielo_che_coprono_entrambi() {
+    // Grid «Sin»: an evergreen crown and a bare one, apart. No cell carries
+    // both, and still 330 pairs of cell and patch have both crowns in the
+    // way. Such a patch lets through the product of the two transmissivities,
+    // and the sum of the two deductions takes it away twice.
+    let piatto = Raster::zeros((41, 41));
+    let sempreverde = blocco("chiome", TRASMISSIVITA_CON_FOGLIE, 12..=16, 10.0, 3.0);
+    let spoglio = blocco(
+        "chiome spoglie",
+        TRASMISSIVITA_SENZA_FOGLIE,
+        24..=28,
+        10.0,
+        3.0,
+    );
+
+    let solo_il_primo = cielo(&piatto, std::slice::from_ref(&sempreverde));
+    let solo_il_secondo = cielo(&piatto, std::slice::from_ref(&spoglio));
+    let due = cielo(&piatto, &[sempreverde, spoglio]);
+
+    // What 0.2.0 computed, rebuilt from the two single-layer answers.
+    let somma_per_strato = ndarray::Zip::from(&due.senza_chiome)
+        .and(&solo_il_primo.con_le_chiome)
+        .and(&solo_il_secondo.con_le_chiome)
+        .map_collect(|&senza, &primo, &secondo| senza - (senza - primo) - (senza - secondo));
+
+    let mut restituito_al_massimo = f32::NEG_INFINITY;
+    for ((&con, &senza), &somma) in due
+        .con_le_chiome
+        .iter()
+        .zip(&due.senza_chiome)
+        .zip(&somma_per_strato)
+    {
+        // Never less sky than the double count leaves, to rounding: where no
+        // patch has both crowns in the way the two agree. And less than the
+        // buildings leave, because every cell of this grid sees both crowns.
+        assert!(
+            somma - 1e-6 <= con && con < senza,
+            "sky view factor con le chiome {con} fuori da [{somma}, {senza})"
+        );
+        restituito_al_massimo = restituito_al_massimo.max(con - somma);
+    }
+    assert!(
+        (media(&due.con_le_chiome) - 0.945348).abs() < 5e-5,
+        "sky view factor medio con le chiome {:.6}, atteso 0.945348: la somma per Strato dà \
+         0.944868",
+        media(&due.con_le_chiome)
+    );
+    // How far the sum per layer sits below, where it is furthest. The table
+    // gives 0.008214 as its largest distance from the patch-by-patch count,
+    // which the new field matches to 1e-6. One patch flipped in that cell
+    // moves this by a few thousandths, hence the loose tolerance: the sum
+    // itself would read zero.
+    assert!(
+        (f64::from(restituito_al_massimo) - 0.008214).abs() < 4e-3,
+        "la somma per Strato sta sotto di {restituito_al_massimo:.6} al massimo, atteso \
+         0.008214"
+    );
+}
+
+#[test]
+fn tre_strati_sono_un_errore_e_non_un_approssimazione() {
+    // The difference between three fields tells apart what two layers cover.
+    // With a third it would need seven fields, and falling back to the sum
+    // would put the double count back without saying so.
+    let strati = [
+        bosco("chiome", TRASMISSIVITA_CON_FOGLIE, 11, 1, 10.0),
+        bosco("chiome spoglie", TRASMISSIVITA_SENZA_FOGLIE, 11, 1, 8.0),
+        bosco("un terzo", TRASMISSIVITA_SENZA_FOGLIE, 11, 1, 6.0),
+    ];
+    let errore = sky_view_factor(&Raster::zeros((11, 11)), 1.0, &strati)
+        .expect_err("tre Strati di chioma hanno dato uno sky view factor");
+    assert!(
+        errore.contains('3'),
+        "l'errore non dice quanti Strati sono arrivati: {errore}"
+    );
+}
+
+#[test]
+fn dove_due_strati_condividono_delle_celle_nessuna_quota_di_volta_esce_negativa() {
+    // Grid «Sov»: the two crowns overlap on fifteen cells, the bare one taller
+    // and with a higher trunk zone. The Chiome riunite keep the tallest top
+    // and the lowest trunk zone there. With the rule of one layer — the
+    // taller canopy and its own trunk zone — their pass leaves open sky that
+    // the evergreen layer covers, and a share of the sky comes out negative
+    // in 312 cells (`docs/ricerca/03-chiome-riunite.md`, under table M3).
+    let piatto = Raster::zeros((41, 41));
+    let sempreverde = blocco("chiome", TRASMISSIVITA_CON_FOGLIE, 16..=20, 10.0, 3.0);
+    let spoglio = blocco(
+        "chiome spoglie",
+        TRASMISSIVITA_SENZA_FOGLIE,
+        18..=22,
+        14.0,
+        8.0,
+    );
+    let riunite = ChiomeRiunite::da_strati(&[sempreverde.clone(), spoglio.clone()])
+        .expect("due Strati di chioma hanno delle Chiome riunite");
+    // Opaque, so that its deduction is the sky the Chiome riunite cover.
+    let opache = StratoDiChioma {
+        nome: "chiome riunite",
+        trasmissivita: 0.0,
+        chiome: riunite.chiome,
+        zona_tronco: riunite.zona_tronco,
+    };
+
+    // The sky one layer covers, read back from the public answer: what it
+    // takes away, over how little it lets through.
+    let volta_tolta = |strato: &StratoDiChioma| {
+        let visibile = cielo(&piatto, std::slice::from_ref(strato));
+        (&visibile.senza_chiome - &visibile.con_le_chiome) / (1.0 - strato.trasmissivita)
+    };
+    let del_primo = volta_tolta(&sempreverde);
+    let del_secondo = volta_tolta(&spoglio);
+    let delle_riunite = volta_tolta(&opache);
+    for ((&a, &b), &u) in del_primo.iter().zip(&del_secondo).zip(&delle_riunite) {
+        assert!(
+            u - b >= -1e-5 && u - a >= -1e-5 && a + b - u >= -1e-5,
+            "una quota di volta negativa: solo il primo {}, solo il secondo {}, entrambi {}",
+            u - b,
+            u - a,
+            a + b - u
+        );
+    }
+
+    let due = cielo(&piatto, &[sempreverde, spoglio]);
+    assert!(
+        (media(&due.con_le_chiome) - 0.956943).abs() < 5e-5,
+        "sky view factor medio con le chiome {:.6}, atteso 0.956943",
+        media(&due.con_le_chiome)
     );
 }

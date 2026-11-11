@@ -4,9 +4,9 @@
 //! `vendor/solweig/` were ever swapped for another kernel, this file is the
 //! whole of the change.
 
-use crate::derivazione::{Raster, StratoDiChioma};
+use crate::derivazione::{ChiomeRiunite, Raster, StratoDiChioma};
 use crate::sole::PosizioneSolare;
-use ndarray::Array2;
+use ndarray::{Array2, Zip};
 use serde::Deserialize;
 use std::sync::OnceLock;
 
@@ -157,8 +157,10 @@ pub fn ombre(
 pub struct SkyViewFactor {
     /// What buildings and terrain leave. 1 on open flat ground. `svf` upstream.
     pub senza_chiome: Raster,
-    /// The same, less what every canopy layer takes away, each weighted by its
-    /// own transmissivity. `svfbuveg` upstream.
+    /// The same, less the part of the sky the canopies cover and do not let
+    /// through. Sky covered by one layer lets through that layer's
+    /// transmissivity; sky covered by two lets through the product of the two.
+    /// `svfbuveg` upstream.
     pub con_le_chiome: Raster,
 }
 
@@ -172,15 +174,27 @@ const PATCH_DEL_CIELO: u8 = 2;
 /// The sky view factor of every cell of the surface model.
 ///
 /// Unlike a shadow this does not depend on the sun: it is a property of the
-/// Scenario, computed once and good for every hour of every Periodo. Which is
-/// the reason it is worth caching, and the reason the reference case computes
-/// it twice and not four times.
+/// Scenario and of the canopy layers the Periodo leaves on it. A Corsa
+/// computes it once, good for every hour. Nothing caches it between Corse, so
+/// the reference case computes it four times.
 ///
 /// Every canopy layer costs one pass over the whole sky, because the kernel
 /// reports whether a cell's view of a patch is blocked by vegetation, never by
 /// which vegetation — the same reason [`ombre`] marches the layers one at a
-/// time. The building field that comes back is the same on every pass, so the
-/// first one's is kept and the rest discarded.
+/// time. Two layers cost a third pass, over their [`ChiomeRiunite`]. The three
+/// fields give, by difference, the sky only the first layer covers, the sky
+/// only the second covers and the sky both cover; the last lets through the
+/// product of the two transmissivities. The building field that comes back is
+/// the same on every pass, so one is kept and the rest discarded.
+///
+/// # Errors
+///
+/// With more than two canopy layers, before any pass is run, and with whatever
+/// the kernel refuses.
+///
+/// # Panics
+///
+/// If two canopy layers differ in shape, which the Derivazione never produces.
 pub fn sky_view_factor(
     modello_di_superficie: &Raster,
     passo_m: f64,
@@ -198,20 +212,21 @@ pub fn sky_view_factor(
         .fold(f32::NEG_INFINITY, f32::max);
     let rilievo = massimo.max(cima_delle_chiome) - minimo;
 
-    let passata = |strato: Option<&StratoDiChioma>| {
+    // One pass over the sky, with a canopy top and a trunk zone or with neither.
+    let passata = |chiome: Option<(&Raster, &Raster)>| {
         pool_a_un_thread().install(|| {
             solweig_vendorato::skyview::calculate_svf_inner(
                 modello_di_superficie.to_owned(),
-                strato.map_or_else(
+                chiome.map_or_else(
                     || Array2::zeros(modello_di_superficie.dim()),
-                    |s| s.chiome.to_owned(),
+                    |(cime, _)| cime.to_owned(),
                 ),
-                strato.map_or_else(
+                chiome.map_or_else(
                     || Array2::zeros(modello_di_superficie.dim()),
-                    |s| s.zona_tronco.to_owned(),
+                    |(_, zona_tronco)| zona_tronco.to_owned(),
                 ),
                 passo_m as f32,
-                strato.is_some(),
+                chiome.is_some(),
                 rilievo,
                 PATCH_DEL_CIELO,
                 // No floor on the patch elevation and no cap on the march: the
@@ -227,7 +242,7 @@ pub fn sky_view_factor(
         })
     };
 
-    let Some((primo, resto)) = strati.split_first() else {
+    let Some(riunite) = ChiomeRiunite::da_strati(strati) else {
         // With no vegetation the kernel never runs the pass that fills
         // `svf_veg`: it comes back as the zeros it was allocated with, and the
         // published combination would subtract a hemisphere no tree is
@@ -239,23 +254,67 @@ pub fn sky_view_factor(
         });
     };
 
-    let esito = passata(Some(primo))?;
-    let senza_chiome = esito.svf;
-    let mut con_le_chiome = senza_chiome.clone();
-    con_le_chiome -= &detrazione(&esito.svf_veg, primo.trasmissivita);
-    for strato in resto {
-        con_le_chiome -= &detrazione(&passata(Some(strato))?.svf_veg, strato.trasmissivita);
+    match strati {
+        [strato] => {
+            // The Chiome riunite of one layer are that layer, and upstream's
+            // formula on its pass is the whole of the answer.
+            let esito = passata(Some((&riunite.chiome, &riunite.zona_tronco)))?;
+            let senza_chiome = esito.svf;
+            let mut con_le_chiome = senza_chiome.clone();
+            con_le_chiome -= &detrazione(&esito.svf_veg, strato.trasmissivita);
+            // The arithmetic of 0.2.0 down to its floor at zero, so that what
+            // a single layer gives does not move by a bit.
+            con_le_chiome.mapv_inplace(|v| v.max(0.0));
+            Ok(SkyViewFactor {
+                senza_chiome,
+                con_le_chiome,
+            })
+        }
+        [primo, secondo] => {
+            let esito = passata(Some((&riunite.chiome, &riunite.zona_tronco)))?;
+            let del_primo = passata(Some((&primo.chiome, &primo.zona_tronco)))?.svf_veg;
+            let del_secondo = passata(Some((&secondo.chiome, &secondo.zona_tronco)))?.svf_veg;
+            let (psi_a, psi_b) = (primo.trasmissivita, secondo.trasmissivita);
+            let senza_chiome = esito.svf;
+            let mut con_le_chiome = senza_chiome.clone();
+            Zip::from(&mut con_le_chiome)
+                .and(&del_primo)
+                .and(&del_secondo)
+                .and(&esito.svf_veg)
+                .for_each(|cielo, &veg_a, &veg_b, &veg_u| {
+                    // The sky each pass found covered: by the first layer, by
+                    // the second, by the two together. What the union has and
+                    // one layer has not is covered by the other alone, and
+                    // what the two sum to beyond the union is covered by both.
+                    // Each is a sum of patch weights in f32, so a share that
+                    // is zero patch by patch can come out slightly negative:
+                    // hence the floors.
+                    let (a, b, u) = (1.0 - veg_a, 1.0 - veg_b, 1.0 - veg_u);
+                    let solo_a = (u - b).max(0.0);
+                    let solo_b = (u - a).max(0.0);
+                    let entrambi = (a + b - u).max(0.0);
+                    *cielo = (*cielo
+                        - solo_a * (1.0 - psi_a)
+                        - solo_b * (1.0 - psi_b)
+                        - entrambi * (1.0 - psi_a * psi_b))
+                        .clamp(0.0, 1.0);
+                });
+            Ok(SkyViewFactor {
+                senza_chiome,
+                con_le_chiome,
+            })
+        }
+        // The difference between three fields tells two layers apart and no
+        // more. Summing the deductions instead would count twice the sky two
+        // layers share, without saying so. The Derivazione produces two layers
+        // at most, so no Progetto gets here.
+        _ => Err(format!(
+            "sono arrivati {} Strati di chioma, e lo sky view factor con le chiome ne regge al \
+             più due: quanta volta copre ciascuno si ricava per differenza fra tre campi, e \
+             con un terzo Strato non bastano",
+            strati.len()
+        )),
     }
-    // Two layers can block the same patch of the same cell, and their two
-    // deductions then count that patch twice. Clamping is the honest floor: a
-    // negative sky view factor is not a number, and the alternative — tracking
-    // which patch each layer took — is a joint occlusion the kernel does not
-    // report.
-    con_le_chiome.mapv_inplace(|v| v.max(0.0));
-    Ok(SkyViewFactor {
-        senza_chiome,
-        con_le_chiome,
-    })
 }
 
 /// The sky one canopy layer takes away: nothing where it blocks nothing, and
