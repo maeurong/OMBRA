@@ -89,3 +89,11 @@ _Avoid_: cielo Perez, use_anisotropic, opzione cielo
 **Motore**:
 Il nucleo di calcolo radiativo riusato da `UMEP-dev/solweig`, che dai raster e dal meteo produce ombre, radiazione, temperatura media radiante e indici di comfort.
 _Avoid_: solver, kernel, backend
+
+**Temperatura media radiante**:
+La temperatura di un ambiente uniforme con cui una persona scambierebbe per irraggiamento la stessa energia che scambia con l'ambiente reale: riassume in un numero la radiazione a onda corta e a onda lunga che il corpo riceve da ogni direzione. Si scrive anche Tmrt, e dipende dalla Postura.
+_Avoid_: mean radiant temperature, MRT, temperatura radiante
+
+**Flusso radiativo**:
+La radiazione che arriva a una cella da una direzione, in W/m². Se ne nominano quattro: onda corta dall'alto, onda corta dal basso, onda lunga dall'alto, onda lunga dal basso, con i simboli K↓, K↑, L↓ e L↑. Esistono anche i flussi laterali, che il Motore usa ma non restituisce: per questo i quattro aiutano a capire la Temperatura media radiante, ma non bastano a ricostruirla.
+_Avoid_: kdown, kup, ldown, lup, componente, bilancio radiativo
