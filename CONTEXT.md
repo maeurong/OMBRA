@@ -70,10 +70,6 @@ _Avoid_: layer, CDSM, canopy raster
 Il raster che riunisce le chiome di tutti gli Strati di chioma di uno Scenario in una sola geometria, senza trasmissività: dice dove una chioma copre la volta celeste, non quanta radiazione lascia passare.
 _Avoid_: strato unico, chiome fuse, CDSM unito
 
-**Muro**:
-La faccia verticale che si trova dove il suolo, con gli Edifici sopra, sale di almeno una soglia fra due celle adiacenti. Non si disegna, si ricava, e un gradino del terreno ne fa uno anche senza Edificio. Ha un'altezza e un orientamento. La soglia la sceglie l'utente, una per il Progetto.
-_Avoid_: parete, facciata, wall
-
 **Trasmissività lungo il raggio**:
 Quanta radiazione diretta arriva a una cella attraverso le chiome che il raggio del sole attraversa in quell'ora: il prodotto delle trasmissività degli Strati di chioma incontrati, uno per ogni cella. Cambia ogni ora con il sole. La Derivazione la produce dalle ombre, e il Motore la consuma al posto di un valore unico per tutta la Griglia.
 _Avoid_: psi, psi del fascio, trasmissività efficace
@@ -85,6 +81,10 @@ _Avoid_: psi del cielo, trasmissività statica
 **Sky view factor**:
 Quanta parte della volta celeste una cella vede. Resta in inglese, come ogni termine tecnico del dominio. Il Giornale ne riporta due: quello che lasciano edifici e terreno, e quello con le chiome, che al primo toglie la parte di volta che le chiome coprono e non lasciano passare. Della volta coperta da un solo Strato di chioma passa una quota pari alla sua trasmissività; di quella coperta da due, il prodotto delle due trasmissività. Non dipende dall'ora, quindi è una proprietà dello Scenario e non della Corsa.
 _Avoid_: fattore di vista del cielo, SVF esteso, apertura del cielo
+
+**Muro**:
+La faccia verticale che si trova dove il terreno, con gli Edifici sopra, sale fra due celle adiacenti almeno quanto la soglia del Muro. Non si disegna, si ricava: anche un gradino del terreno, senza Edificio, forma un Muro. Ha un'altezza e un orientamento. La soglia del Muro la sceglie l'utente e vale per l'intero Progetto.
+_Avoid_: parete, facciata, wall
 
 **Modello di cielo**:
 Come il Motore tratta la volta celeste come sorgente di radiazione. Con `anisotropo` il cielo è diviso in patch, ciascuna con la propria luminosità e la propria copertura da edifici e chiome; con `isotropo` è una sorgente uniforme e conta solo lo Sky view factor. È una scelta di modellazione dell'utente, vale per l'intero Progetto e il Giornale la registra. Il predefinito è `anisotropo`.
