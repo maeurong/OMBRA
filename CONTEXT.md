@@ -82,6 +82,10 @@ _Avoid_: psi del cielo, trasmissività statica
 Quanta parte della volta celeste una cella vede. Resta in inglese, come ogni termine tecnico del dominio. Il Giornale ne riporta due: quello che lasciano edifici e terreno, e quello con le chiome, che al primo toglie la parte di volta che le chiome coprono e non lasciano passare. Della volta coperta da un solo Strato di chioma passa una quota pari alla sua trasmissività; di quella coperta da due, il prodotto delle due trasmissività. Non dipende dall'ora, quindi è una proprietà dello Scenario e non della Corsa.
 _Avoid_: fattore di vista del cielo, SVF esteso, apertura del cielo
 
+**Muro**:
+La faccia verticale che si trova dove il terreno, con gli Edifici sopra, sale fra due celle adiacenti almeno quanto la soglia del Muro. Non si disegna, si ricava: anche un gradino del terreno, senza Edificio, forma un Muro. Ha un'altezza e un orientamento. La soglia del Muro la sceglie l'utente e vale per l'intero Progetto.
+_Avoid_: parete, facciata, wall
+
 **Modello di cielo**:
 Come il Motore tratta la volta celeste come sorgente di radiazione. Con `anisotropo` il cielo è diviso in patch, ciascuna con la propria luminosità e la propria copertura da edifici e chiome; con `isotropo` è una sorgente uniforme e conta solo lo Sky view factor. È una scelta di modellazione dell'utente, vale per l'intero Progetto e il Giornale la registra. Il predefinito è `anisotropo`.
 _Avoid_: cielo Perez, use_anisotropic, opzione cielo
