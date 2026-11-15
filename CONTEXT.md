@@ -101,3 +101,7 @@ _Avoid_: mean radiant temperature, MRT, temperatura radiante
 **Flusso radiativo**:
 La radiazione che arriva a una cella da una direzione, in W/m². Se ne nominano quattro: onda corta dall'alto, onda corta dal basso, onda lunga dall'alto, onda lunga dal basso, con i simboli K↓, K↑, L↓ e L↑. Esistono anche i flussi laterali, che il Motore usa ma non restituisce: per questo i quattro aiutano a capire la Temperatura media radiante, ma non bastano a ricostruirla.
 _Avoid_: kdown, kup, ldown, lup, componente, bilancio radiativo
+
+**Stato termico**:
+La memoria del suolo che il Motore porta da un'Ora alla successiva dentro una Corsa: il suolo di sera risente ancora del sole del pomeriggio. La notte la azzera, quindi non passa da un giorno all'altro e non esce dalla Corsa. Per questo un Periodo non ha bisogno di Ore di avviamento.
+_Avoid_: stato, memoria termica, thermal state
