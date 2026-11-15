@@ -70,6 +70,10 @@ _Avoid_: layer, CDSM, canopy raster
 Il raster che riunisce le chiome di tutti gli Strati di chioma di uno Scenario in una sola geometria, senza trasmissività: dice dove una chioma copre la volta celeste, non quanta radiazione lascia passare.
 _Avoid_: strato unico, chiome fuse, CDSM unito
 
+**Muro**:
+La faccia verticale che si trova dove il suolo, con gli Edifici sopra, sale di almeno una soglia fra due celle adiacenti. Non si disegna, si ricava, e un gradino del terreno ne fa uno anche senza Edificio. Ha un'altezza e un orientamento. La soglia la sceglie l'utente, una per il Progetto.
+_Avoid_: parete, facciata, wall
+
 **Trasmissività lungo il raggio**:
 Quanta radiazione diretta arriva a una cella attraverso le chiome che il raggio del sole attraversa in quell'ora: il prodotto delle trasmissività degli Strati di chioma incontrati, uno per ogni cella. Cambia ogni ora con il sole. La Derivazione la produce dalle ombre, e il Motore la consuma al posto di un valore unico per tutta la Griglia.
 _Avoid_: psi, psi del fascio, trasmissività efficace
