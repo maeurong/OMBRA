@@ -98,6 +98,14 @@ _Avoid_: solver, kernel, backend
 La temperatura di un ambiente uniforme con cui una persona scambierebbe per irraggiamento la stessa energia che scambia con l'ambiente reale: riassume in un numero la radiazione a onda corta e a onda lunga che il corpo riceve da ogni direzione. Si scrive anche Tmrt, e dipende dalla Postura.
 _Avoid_: mean radiant temperature, MRT, temperatura radiante
 
+**UTCI**:
+L'indice di comfort termico di OMBRA: la temperatura dell'aria che, in condizioni di riferimento, darebbe a una persona la stessa risposta fisiologica dell'ambiente reale, ricavata da aria, umidità, vento e Temperatura media radiante. Il polinomio che la dà vale solo entro i limiti su cui è stato adattato: fuori la UTCI si dice **estrapolata**, e si dichiara senza correggerla.
+_Avoid_: indice di comfort, temperatura percepita, UTCI fuori intervallo
+
+**Categoria di stress**:
+Una delle dieci fasce in cui si legge la UTCI, da «stress da freddo estremo» a «stress da caldo estremo». È il livello a cui argomenta uno studio di mitigazione: spostare un cortile da una Categoria all'altra.
+_Avoid_: banda, classe, livello di comfort
+
 **Flusso radiativo**:
 La radiazione che arriva a una cella da una direzione, in W/m². Se ne nominano quattro: onda corta dall'alto, onda corta dal basso, onda lunga dall'alto, onda lunga dal basso, con i simboli K↓, K↑, L↓ e L↑. Esistono anche i flussi laterali, che il Motore usa ma non restituisce: per questo i quattro aiutano a capire la Temperatura media radiante, ma non bastano a ricostruirla.
 _Avoid_: kdown, kup, ldown, lup, componente, bilancio radiativo
