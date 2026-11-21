@@ -41,7 +41,7 @@ fatta contiene 37 pacchetti: tutti, tranne `probe`, alle stesse versioni del loc
 
 ---
 
-## Premesse del brief, verificate
+## Premesse verificate
 
 - `rust/Cargo.toml:2` `name = "rustalgos"`; `:8` `crate-type = ["cdylib", "rlib"]`; `:11`
   `pyo3 = { version = "0.24.2", features = ["extension-module", "abi3-py311"] }`; `:26`
@@ -53,7 +53,7 @@ fatta contiene 37 pacchetti: tutti, tranne `probe`, alle stesse versioni del loc
   `#[pymodule]` del crate. Quindi il crate in `rlib` porta pyo3 comunque. `[V]`
 - `vendor/solweig/Cargo.toml:13-20` ha solo `ndarray 0.16.1` e `rayon`: la copia di OMBRA non
   dipende da pyo3. `[V]`
-- **Precisazione marginale.** Il brief chiede `export PATH=$HOME/.cargo/bin:$PATH`. Su questa
+- **Precisazione marginale.** `CLAUDE.md` indica `export PATH=$HOME/.cargo/bin:$PATH`. Su questa
   macchina `~/.cargo/bin` non esiste, e `cargo` e `rustc` vengono da Homebrew
   (`/opt/homebrew/Cellar/rust/1.99.1`). Non cambia nulla della prova. `[M]`
 - **Precisazione al ticket.** Il ticket riporta l'avviso di monte: «a binary that links this crate
