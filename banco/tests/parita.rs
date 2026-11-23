@@ -35,7 +35,7 @@ const GIORNO: Data = Data {
     mese: 6,
     giorno: 21,
 };
-/// The column the east half of the third case starts at.
+/// The column the east half starts at, in the third and in the fourth case.
 const MEZZERIA: usize = LATO / 2;
 
 const PERSONA: HumanScalars = HumanScalars {
@@ -185,7 +185,7 @@ fn le_sei_ore() -> Vec<WeatherScalars> {
                 altmax,
                 clearness_index: if altezza > 0.0 { 0.8 } else { 0.0 },
                 // `(hour + minute / 60) / 24` of the label,
-                // `pysrc/solweig/computation.py:338`.
+                // `pysrc/solweig/computation.py:341`.
                 dectime: f32::from(fine) / 24.0,
                 snup: alba,
                 rad_g0: globale,
@@ -349,7 +349,7 @@ impl LatoMonte {
                 0.20,
             )
         });
-        // `computation.py:322-326` for the wall material and `:410` for the
+        // `computation.py:323-327` for the wall material and `:410` for the
         // shadow reach.
         let config = monte::ConfigScalars {
             pixel_size: PASSO_M,
@@ -572,71 +572,78 @@ fn con_trasmissivita_costanti_il_passo_e_monte_bit_per_bit() {
     let sc = scenario();
     let pool = pool_a_un_thread();
     let lato_ombra = LatoOmbra::nuovo(&sc, 0.03, 0.03);
-    let passo = lato_ombra.passo(&sc, true);
-    let lato_monte = LatoMonte::nuovo(&sc, &pool, true);
     let raggio = Raster::from_elem(FORMA, 0.03);
 
-    let mut stato_ombra = stato_iniziale();
-    let mut stato_monte = stato_iniziale();
-    for (indice, meteo) in le_sei_ore().iter().enumerate() {
-        let ora = indice + 1;
-        let o = passo
-            .ora(meteo, &raggio, &stato_ombra)
-            .expect("un'Ora del passo di OMBRA");
-        let esito = lato_monte.ora(&sc, &pool, meteo, 0.03, &stato_monte);
-        let m = uscite(&esito);
+    for anisotropo in [true, false] {
+        let cielo = if anisotropo { "anisotropo" } else { "isotropo" };
+        let passo = lato_ombra.passo(&sc, anisotropo);
+        let lato_monte = LatoMonte::nuovo(&sc, &pool, anisotropo);
+        let mut stato_ombra = stato_iniziale();
+        let mut stato_monte = stato_iniziale();
+        for (indice, meteo) in le_sei_ore().iter().enumerate() {
+            let ora = indice + 1;
+            let o = passo
+                .ora(meteo, &raggio, &stato_ombra)
+                .expect("un'Ora del passo di OMBRA");
+            let esito = lato_monte.ora(&sc, &pool, meteo, 0.03, &stato_monte);
+            let m = uscite(&esito);
 
-        if ora == 1 {
-            // Not a comparison of two flat fields: the first Ora has cells in
-            // the sun and in the shade, and a Tmrt that varies.
-            assert!(m.shadow.iter().any(|&v| v == 0.0) && m.shadow.iter().any(|&v| v == 1.0));
-            let (minimo, massimo) = esito
-                .tmrt
-                .iter()
-                .fold((f32::INFINITY, f32::NEG_INFINITY), |(a, b), &v| {
-                    (a.min(v), b.max(v))
-                });
-            assert!(
-                massimo - minimo > 1.0,
-                "Tmrt quasi uniforme: {minimo}..{massimo}"
+            if ora == 1 {
+                // Not a comparison of two flat fields: the first Ora has cells
+                // in the sun and in the shade, and a Tmrt that varies.
+                assert!(m.shadow.iter().any(|&v| v == 0.0) && m.shadow.iter().any(|&v| v == 1.0));
+                let (minimo, massimo) = esito
+                    .tmrt
+                    .iter()
+                    .fold((f32::INFINITY, f32::NEG_INFINITY), |(a, b), &v| {
+                        (a.min(v), b.max(v))
+                    });
+                assert!(
+                    massimo - minimo > 1.0,
+                    "cielo {cielo}: Tmrt quasi uniforme: {minimo}..{massimo}"
+                );
+            }
+
+            for (nome, ombra, monte) in [
+                ("tmrt", &o.temperatura_media_radiante, &esito.tmrt),
+                ("shadow", &o.illuminata, m.shadow),
+                ("kdown", &o.k_giu, m.kdown),
+                ("kup", &o.k_su, m.kup),
+                ("ldown", &o.l_giu, m.ldown),
+                ("lup", &o.l_su, m.lup),
+            ] {
+                stessi_bit(
+                    &format!("cielo {cielo}, Ora {ora}, {nome}"),
+                    ombra.view(),
+                    monte.view(),
+                );
+            }
+
+            stato_monte = dopo_l_ora(stato_di_monte(&stato_monte, &esito), meteo);
+            stato_ombra = dopo_l_ora(o.stato, meteo);
+        }
+
+        assert_eq!(
+            stato_ombra.timeadd.to_bits(),
+            stato_monte.timeadd.to_bits(),
+            "cielo {cielo}: timeadd dopo la sesta Ora: OMBRA {} contro monte {}",
+            stato_ombra.timeadd,
+            stato_monte.timeadd
+        );
+        for (nome, ombra, monte) in [
+            ("tgmap1", &stato_ombra.tgmap1, &stato_monte.tgmap1),
+            ("tgmap1_e", &stato_ombra.tgmap1_e, &stato_monte.tgmap1_e),
+            ("tgmap1_s", &stato_ombra.tgmap1_s, &stato_monte.tgmap1_s),
+            ("tgmap1_w", &stato_ombra.tgmap1_w, &stato_monte.tgmap1_w),
+            ("tgmap1_n", &stato_ombra.tgmap1_n, &stato_monte.tgmap1_n),
+            ("tgout1", &stato_ombra.tgout1, &stato_monte.tgout1),
+        ] {
+            stessi_bit(
+                &format!("cielo {cielo}, dopo la sesta Ora, {nome}"),
+                ombra.view(),
+                monte.view(),
             );
         }
-
-        for (nome, ombra, monte) in [
-            ("tmrt", &o.temperatura_media_radiante, &esito.tmrt),
-            ("shadow", &o.illuminata, m.shadow),
-            ("kdown", &o.k_giu, m.kdown),
-            ("kup", &o.k_su, m.kup),
-            ("ldown", &o.l_giu, m.ldown),
-            ("lup", &o.l_su, m.lup),
-        ] {
-            stessi_bit(&format!("Ora {ora}, {nome}"), ombra.view(), monte.view());
-        }
-
-        stato_monte = dopo_l_ora(stato_di_monte(&stato_monte, &esito), meteo);
-        stato_ombra = dopo_l_ora(o.stato, meteo);
-    }
-
-    assert_eq!(
-        stato_ombra.timeadd.to_bits(),
-        stato_monte.timeadd.to_bits(),
-        "timeadd dopo la sesta Ora: OMBRA {} contro monte {}",
-        stato_ombra.timeadd,
-        stato_monte.timeadd
-    );
-    for (nome, ombra, monte) in [
-        ("tgmap1", &stato_ombra.tgmap1, &stato_monte.tgmap1),
-        ("tgmap1_e", &stato_ombra.tgmap1_e, &stato_monte.tgmap1_e),
-        ("tgmap1_s", &stato_ombra.tgmap1_s, &stato_monte.tgmap1_s),
-        ("tgmap1_w", &stato_ombra.tgmap1_w, &stato_monte.tgmap1_w),
-        ("tgmap1_n", &stato_ombra.tgmap1_n, &stato_monte.tgmap1_n),
-        ("tgout1", &stato_ombra.tgout1, &stato_monte.tgout1),
-    ] {
-        stessi_bit(
-            &format!("dopo la sesta Ora, {nome}"),
-            ombra.view(),
-            monte.view(),
-        );
     }
 }
 

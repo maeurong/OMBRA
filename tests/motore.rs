@@ -1165,7 +1165,10 @@ fn mezzogiorno_estivo() -> WeatherScalars {
         diffuse_rad: 150.0,
         altmax: 66.0,
         clearness_index: 0.85,
-        dectime: 196.5,
+        // A fraction of the day, `pysrc/solweig/computation.py:341` at the pin.
+        dectime: 12.0 / 24.0,
+        // Hours, as upstream's `daylen` returns sunrise
+        // (`pysrc/solweig/physics/daylen.py:32`); the step divides by 24.
         snup: 5.5,
         rad_g0: 850.0,
         zen_deg: 30.0,
@@ -1322,7 +1325,7 @@ fn senza_chiome_il_passo_legge_i_campi_della_vegetazione() {
     let scarto = (&l_giu(&a_uno) - &l_giu(&a_zero))
         .iter()
         .fold(0.0_f32, |massimo, v| massimo.max(v.abs()));
-    // Measured 56.9 W/m2 on aarch64-apple-darwin.
+    // Measured 57.3 W/m2 on aarch64-apple-darwin.
     assert!(
         scarto > 10.0,
         "l_giu non cambia coi campi della vegetazione a zero invece che a uno: scarto {scarto} W/m2"
