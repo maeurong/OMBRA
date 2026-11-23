@@ -22,11 +22,16 @@ confrontare niente.
 Il banco è un crate a sé, con un proprio `[workspace]`: `pyo3` e il clone non
 entrano mai nel `Cargo.lock` di OMBRA né nel suo binario.
 
+Il `Cargo.lock` del banco parte da quello di monte, quindi nel banco OMBRA si
+compila con le versioni di monte e non con quelle del `Cargo.lock` della radice:
+`rayon` 1.11.0 invece di 1.12.0, `matrixmultiply` 0.3.10 invece di 0.3.11. La
+parità di bit è fra i due nuclei sullo stesso insieme di dipendenze.
+
 ## La via, misurata
 
 | Macchina | Via | Python | Profilo | Esito |
 |---|---|---|---|---|
-| macOS 27.2.1 arm64, rustc 1.99.1 di Homebrew | A2 | `/opt/homebrew/bin/python`, 3.14.10 di Homebrew (framework, `libpython3.14`) | `test` e `release` | collega e passa |
+| macOS 27.2.1 arm64, rustc 1.99.1 di Homebrew | A2 | `/opt/homebrew/bin/python`, 3.14.10 di Homebrew (framework, `libpython3.14`) | `test` e `release` | collega e passa i quattro casi |
 | `ubuntu-latest` | A2 | 3.12 di `actions/setup-python` | `release` | da misurare: serve il primo giro del lavoro `parita` |
 
 Su macOS `pyo3` ha scelto `python` (3.14) e non `python3` (3.15), perché cerca
@@ -42,7 +47,8 @@ dipendenza, e lo segnala a ogni compilazione.
 Un ingresso costruito nel test, 16 × 16 celle a 1 m: un Edificio di 4 × 4 celle
 alto 6 m, un Albero con chioma da 5 a 8 m e zona tronco fino a 2 m, Muri ricavati
 dalla copia vendorata di `compute_wall_aspect_pure`, suolo uniforme ai valori
-della classe 1 di monte, persona in piedi, cielo anisotropo nei primi tre casi. Sei Ore del
+della classe 1 di monte, persona in piedi, cielo anisotropo nel secondo e nel terzo caso, entrambi i
+cieli nel primo e nel quarto. Sei Ore del
 21 giugno, dalle 14 alle 20, a 43,07 N 12,55 E. Entrambi i lati girano in un pool
 `rayon` a un thread.
 
@@ -53,9 +59,11 @@ le chiamate di monte sky view factor, campi direzionali, matrici d'ombra,
 lo stesso errore, e il confronto gli darebbe ragione.
 
 - `con_trasmissivita_costanti_il_passo_e_monte_bit_per_bit`: raggio e cielo a
-  0,03, monte con `psi = 0.03`. Per ogni Ora, `tmrt`, `shadow`, `kdown`, `kup`,
-  `ldown`, `lup` con gli stessi bit; dopo la sesta, `timeadd` e i sei raster dello
-  Stato termico. Lo Stato termico passa da un'Ora all'altra come lo passa monte
+  0,03, monte con `psi = 0.03`, con il cielo anisotropo e con quello isotropo.
+  Per ogni Ora, `tmrt`, `shadow`, `kdown`, `kup`, `ldown`, `lup` con gli stessi
+  bit; dopo la sesta, `timeadd` e i sei raster dello Stato termico. Nel cielo
+  isotropo è l'unico caso che confronta `tmrt`, `kup`, `ldown` e `lup` nelle Ore
+  di sole: il quarto li confronta solo nell'ultima. Lo Stato termico passa da un'Ora all'altra come lo passa monte
   (`pysrc/solweig/computation.py:723-727`): dopo un'Ora di giorno
   `firstdaytime = 0`, e il passo legge la storia che riceve.
 - `raggio_e_cielo_non_si_scambiano`: raggio a 0,5, cielo a 0,03. `shadow` uguale
@@ -82,6 +90,14 @@ lo stesso errore, e il confronto gli darebbe ragione.
   Lo vede il secondo caso.
 - La storia dello Stato termico nel quarto caso, per la ragione detta sopra. La
   vede il primo caso.
+- Il ramo notturno di `dopo_l_ora` (`firstdaytime = 1`, `timeadd = 0`): non gira
+  mai, perché tutte e sei le Ore sono di giorno. Anche l'ultima, col sole a 2,6
+  gradi, conta come giorno.
+- Una Trasmissività letta dalla cella sbagliata nel cielo isotropo, nelle Ore di
+  sole. Nel primo caso il raster è costante, quindi ogni cella vale quanto le
+  altre. Misurato: con `kside_veg_isotropic_pure` che legge sempre la cella
+  `(0, 0)` il primo caso resta verde, e il quarto diventa rosso solo all'ultima
+  Ora.
 - La preparazione dei dati di monte. Le chiome arrivano ai due lati con `NaN`
   dove non c'è albero, come le porta uno Strato di chioma; il Python di monte le
   riempirebbe con la quota del suolo (`fill_nan`). Il banco verifica il passo,

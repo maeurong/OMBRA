@@ -173,3 +173,21 @@ la misura vanno riscritti.
 
 Il test della condizione resta a carico nostro e non è ancora scritto. La funzione nominata è
 in un tag: il test si può scrivere.
+
+## Aggiornamento, 2026-11-23: il test della condizione c'è
+
+La decisione non cambia. Cambia lo stato della sua condizione: le frasi «per ora c'è una
+misura e non un test» e «il test non è ancora scritto» valevano all'11 novembre.
+
+Il test sta nel [banco di parità](../../banco/README.md). Si chiama
+`con_trasmissivita_costanti_il_passo_e_monte_bit_per_bit` (`banco/tests/parita.rs`) e
+confronta il passo della copia vendorata, con i due raster costanti a 0,03, con
+`compute_timestep_rust` di monte al pin `41840b7`, con `psi = 0.03`. Gira sei Ore con il
+cielo anisotropo e sei con quello isotropo, e vuole gli stessi bit in `tmrt`, `shadow`,
+`kdown`, `kup`, `ldown` e `lup` di ogni Ora, poi in `timeadd` e nei sei raster dello Stato
+termico dopo la sesta. Passa su macOS arm64. Su Linux non è ancora misurato: serve il primo
+giro del lavoro `parita` (`.github/workflows/parita.yml`).
+
+Dell'elenco «Cosa la misura lascia fuori» il banco chiude il pin, `estrai.py` con la funzione
+nominata, i due raster diversi fra loro e lo Stato termico dopo l'ultima Ora. Restano fuori
+il ramo 2026a, Bastia e una seconda macchina.

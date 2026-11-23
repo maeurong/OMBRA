@@ -203,8 +203,11 @@ monte vale per l'intera griglia. La fa `estrai.py`, con le regole di
 `TRASMISSIVITA`; ogni regola dichiara quante volte deve trovare il proprio
 testo di monte, e lo script si ferma al primo conteggio che non torna. La
 condizione dell'ADR: con i due raster costanti, uguali allo scalare, il passo
-deve dare le uscite di monte byte per byte. Su 41840b7 non è ancora misurata:
-la misura dell'ADR è a 0.1.0b98 e su una sostituzione fatta a mano.
+deve dare le uscite di monte byte per byte. Su 41840b7 la verifica, bit per
+bit, il test `con_trasmissivita_costanti_il_passo_e_monte_bit_per_bit` del
+banco (`banco/tests/parita.rs`), misurato su macOS arm64; su Linux non è
+ancora misurato. La misura dell'ADR è a 0.1.0b98 e su una sostituzione fatta
+a mano.
 
 Le undici righe sostituite, citate al pin 41840b7:
 

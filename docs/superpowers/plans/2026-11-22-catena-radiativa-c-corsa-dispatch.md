@@ -302,6 +302,15 @@ In ordine di gravità. «C:n» è la riga del piano C, «spec:n» quella della s
 
 24. **Il cancello dei 60 secondi.** Il rischio è basso, e la misura sta in #24: circa 2,7 s sul caso di riferimento con l'anisotropo, limite superiore con i Muri spenti. Il rischio vero è il passo fuori dal pool (sezione 5). La doppia ombra per Ora (spec, «Note») si misura al task 5c insieme al resto.
 
+**Dal piano A, da chiudere quando la Corsa chiama `PassoDelloScenario`.** Righe verificate su `feat/passo-vendorato` a `3c83954`.
+
+- **Messaggi fuori da `lingua.rs`.** Tre stringhe italiane nel codice di `src/motore.rs`: in `nuovo`, il cielo anisotropo senza matrici (`:641`); in `ora`, il campo che `OUT_ALL` chiede e manca (`:799`); in `stessa_forma` (`:827-829`). Con loro la stringa già presente dei più di due Strati di `cielo`, che `sky_view_factor` restituisce (`:414`). Vanno in `src/lingua.rs` con un errore tipizzato del Motore.
+- **`cielo` e `strati` da Strati diversi.** `IngressiDelloScenario` li riceve separati (`src/motore.rs:538`, `:544`), e devono venire dagli stessi Strati. Niente lo controlla: una discordanza dà una Tmrt sbagliata in silenzio.
+- **Il sole basso.** `ombre` dà tutto in ombra a 2° o meno (`src/motore.rs:51`, `:75`); `ora` (`:702`) non ha soglia e lascia quella del passo, 3° (`vendor/solweig/src/pipeline.rs:324`, a monte `rust/src/pipeline.rs:671`). Fra 2° e 3° le due ombre non coincidono.
+- **La maschera degli edifici.** OMBRA chiama Edificio ogni cella con `costruite > 0` (`src/motore.rs:840-841`); `detect_building_mask` di monte vuole almeno 2 m sopra il DEM (`pysrc/solweig/components/gvf.py:23`, `:54`).
+- **`rilievo` su un modello di superficie tutto NaN** dà `-inf` (`src/motore.rs:154-165`); monte dà 0 (`pysrc/solweig/models/surface.py:257-258`).
+- **Le etichette di forma non nominano lo Strato.** «le chiome di uno Strato» e «la zona-tronco di uno Strato» (`src/motore.rs:633-634`) non dicono quale; il nome c'è, `StratoDiChioma.nome` (`src/derivazione.rs:121`).
+
 **Verificate e vere, senza correzione.** `#[serde(default)]` su `Manifesto` legge un manifesto della 0.3.0 con i predefiniti (difetto 5, eseguito). `"in piedi"` fa andata e ritorno in TOML e nell'Impronta. `ore_dal` rileva un file che comincia a metà giornata con `GiornoMonco` (`src/meteo.rs:654-668`). `valida` gira sia in `scrivi` sia in `leggi` (`src/progetto.rs:301`, `:341`), quindi la soglia si rifiuta in tutti e due senza codice in più. Le quattro righe di ricerca del brief esistono e dicono quello che il brief dice.
 
 ---
