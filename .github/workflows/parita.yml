@@ -9,6 +9,7 @@ on:
     paths:
       - "vendor/**"
       - "src/motore.rs"
+      - "src/derivazione.rs"
       - "banco/**"
       # A change to this file must run it, as vendor-check.yml does for itself.
       - ".github/workflows/parita.yml"
@@ -34,6 +35,8 @@ jobs:
           persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
 
       # A Python with a shared libpython, at build and at run time: route A2
       # of docs/ricerca/05-crate-rlib.md links against it.
@@ -50,5 +53,10 @@ jobs:
       - name: Clone upstream at the pin
         run: bash banco/prepara.sh
 
+      # After the clone: cargo reads banco's manifest, which names the clone
+      # as a path dependency.
+      - name: Formatting
+        run: cargo fmt --manifest-path banco/Cargo.toml --check
+
       - name: Parity tests
-        run: cargo test --manifest-path banco/Cargo.toml --release
+        run: cargo test --manifest-path banco/Cargo.toml --release --locked
