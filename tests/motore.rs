@@ -1260,11 +1260,73 @@ fn il_passo_su_un_piano_aperto_e_finito() {
         uscita.k_giu.iter().all(|&v| v > 0.0),
         "una cella senza radiazione a onda corta col sole a 60 gradi"
     );
+    for (nome, campo) in [
+        ("k_su", &uscita.k_su),
+        ("l_giu", &uscita.l_giu),
+        ("l_su", &uscita.l_su),
+        ("stato.tgmap1", &uscita.stato.tgmap1),
+        ("stato.tgmap1_e", &uscita.stato.tgmap1_e),
+        ("stato.tgmap1_s", &uscita.stato.tgmap1_s),
+        ("stato.tgmap1_w", &uscita.stato.tgmap1_w),
+        ("stato.tgmap1_n", &uscita.stato.tgmap1_n),
+        ("stato.tgout1", &uscita.stato.tgout1),
+    ] {
+        assert!(
+            campo.iter().all(|v| v.is_finite()),
+            "{nome} ha una cella non finita su un piano aperto"
+        );
+    }
     assert_eq!(
         uscita.stato.firstdaytime, 1,
         "firstdaytime non passa invariato"
     );
     assert_eq!(uscita.stato.timestep_dec, 1.0 / 24.0);
+}
+
+#[test]
+fn senza_chiome_il_passo_legge_i_campi_della_vegetazione() {
+    // `compute_ldown` reads `svf_veg` and `svf_aveg` even with `use_veg` off
+    // (`vendor/solweig/src/pipeline_radiation.rs:129-132`). Left at the zeros
+    // the kernel allocates them with, the longwave from above changes; the
+    // range of Tmrt in the test above is too wide to see it.
+    let a_uno = piano_aperto(8);
+    let mut a_zero = piano_aperto(8);
+    let d = &mut a_zero.cielo.direzionali;
+    for campo in [
+        &mut d.svf_veg,
+        &mut d.svf_veg_n,
+        &mut d.svf_veg_e,
+        &mut d.svf_veg_s,
+        &mut d.svf_veg_w,
+        &mut d.svf_aveg,
+        &mut d.svf_aveg_n,
+        &mut d.svf_aveg_e,
+        &mut d.svf_aveg_s,
+        &mut d.svf_aveg_w,
+    ] {
+        campo.fill(0.0);
+    }
+    let l_giu = |piano: &PianoAperto| {
+        let Ok(passo) = PassoDelloScenario::nuovo(piano.ingressi(false)) else {
+            panic!("il passo sul piano aperto");
+        };
+        passo
+            .ora(
+                &mezzogiorno_estivo(),
+                &Raster::ones((8, 8)),
+                &stato_iniziale((8, 8)),
+            )
+            .expect("un'Ora di mezzogiorno estivo")
+            .l_giu
+    };
+    let scarto = (&l_giu(&a_uno) - &l_giu(&a_zero))
+        .iter()
+        .fold(0.0_f32, |massimo, v| massimo.max(v.abs()));
+    // Measured 56.9 W/m2 on aarch64-apple-darwin.
+    assert!(
+        scarto > 10.0,
+        "l_giu non cambia coi campi della vegetazione a zero invece che a uno: scarto {scarto} W/m2"
+    );
 }
 
 #[test]
@@ -1312,4 +1374,81 @@ fn senza_chiome_i_campi_della_vegetazione_valgono_uno() {
     }
     assert!(passata.volta_coperta.iter().all(|&v| v == 0.0));
     assert!(passata.detrazione.iter().all(|&v| v == 0.0));
+}
+
+#[test]
+fn con_uno_strato_la_detrazione_e_la_formula_di_monte() {
+    let lato = 21;
+    let strato = bosco("chiome", TRASMISSIVITA_CON_FOGLIE, lato, 2, 10.0);
+    let passata = motore::cielo(
+        &Raster::zeros((lato, lato)),
+        1.0,
+        std::slice::from_ref(&strato),
+        false,
+    )
+    .expect("la passata del cielo");
+    let svf_veg = &passata.direzionali.svf_veg;
+    // The same f32 operations as the Motore, so the same bits.
+    let attesa = svf_veg.mapv(|v| (1.0 - v) * (1.0 - strato.trasmissivita));
+    assert_eq!(passata.detrazione, attesa);
+    assert_eq!(passata.volta_coperta, svf_veg.mapv(|v| 1.0 - v));
+    assert!(
+        passata.detrazione.iter().any(|&v| v > 0.05),
+        "la chioma non toglie cielo a nessuna cella"
+    );
+}
+
+#[test]
+fn con_due_strati_la_detrazione_non_somma_quelle_per_strato() {
+    // Grid «Sov» of `dove_due_strati_condividono_delle_celle_…`: two crowns on
+    // fifteen shared cells, two transmissivities. Summing the deduction of
+    // each layer, which `2ada596` removed, counts twice the sky both cover.
+    let piatto = Raster::zeros((41, 41));
+    let sempreverde = blocco("chiome", TRASMISSIVITA_CON_FOGLIE, 16..=20, 10.0, 3.0);
+    let spoglio = blocco(
+        "chiome spoglie",
+        TRASMISSIVITA_SENZA_FOGLIE,
+        18..=22,
+        14.0,
+        8.0,
+    );
+    let passata = |strati: &[StratoDiChioma]| {
+        motore::cielo(&piatto, 1.0, strati, false).expect("la passata del cielo")
+    };
+    let del_primo = passata(std::slice::from_ref(&sempreverde)).detrazione;
+    let del_secondo = passata(std::slice::from_ref(&spoglio)).detrazione;
+    let due = passata(&[sempreverde, spoglio]);
+    let svf = &due.sky_view_factor;
+
+    // `con_le_chiome` subtracts the three shares one by one and `detrazione`
+    // sums them: they agree to rounding. Largest gap measured on this grid,
+    // aarch64-apple-darwin: 8.9e-8.
+    let mut scarto = 0.0_f32;
+    for ((&senza, &con), &tolta) in svf
+        .senza_chiome
+        .iter()
+        .zip(&svf.con_le_chiome)
+        .zip(&due.detrazione)
+    {
+        if con > 0.0 {
+            scarto = scarto.max((senza - con - tolta).abs());
+        }
+    }
+    assert!(
+        scarto < 1e-6,
+        "senza_chiome − con_le_chiome si scosta dalla detrazione di {scarto}"
+    );
+
+    let mut sotto_la_somma = 0.0_f32;
+    for riga in 18..=22 {
+        for colonna in 18..=20 {
+            let somma = del_primo[[riga, colonna]] + del_secondo[[riga, colonna]];
+            sotto_la_somma = sotto_la_somma.max(somma - due.detrazione[[riga, colonna]]);
+        }
+    }
+    // Measured 0.0407 at most, on the same platform.
+    assert!(
+        sotto_la_somma > 0.01,
+        "nessuna cella condivisa toglie meno della somma per Strato: al più {sotto_la_somma}"
+    );
 }

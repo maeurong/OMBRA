@@ -209,21 +209,30 @@ pub fn sky_view_factor(
 #[derive(Debug, Clone)]
 pub struct PassataDelCielo {
     pub sky_view_factor: SkyViewFactor,
-    /// The kernel's directional fields, named as in upstream `SvfViews`
-    /// (svf_n/e/s/w, svf_veg + n/e/s/w, svf_aveg + n/e/s/w). `svfbuveg` is
-    /// `sky_view_factor.con_le_chiome` and is not repeated.
+    /// The other fields of the pass the step reads, named as in upstream
+    /// `SvfViews` (svf_n/e/s/w, svf_veg + n/e/s/w, svf_aveg + n/e/s/w).
+    /// `svfbuveg` is `sky_view_factor.con_le_chiome` and is not repeated.
     pub direzionali: Direzionali,
     /// The three bit-packed shadow matrices, (rows, cols, 20); `None` unless asked for.
     pub matrici: Option<MatriciDOmbra>,
     /// Per cell: the opaque part the canopies take off the sky (what
     /// `detrazione` gives for one layer, the three shares by difference for
     /// two), and the vault the Chiome riunite cover, 1 − svf_veg.
+    ///
+    /// `detrazione` is taken before the floor at zero that `con_le_chiome`
+    /// gets: where the floor acts, `senza_chiome − detrazione` is below
+    /// `con_le_chiome`.
     pub detrazione: Raster,
     pub volta_coperta: Raster,
 }
 
-/// The directional sky view factors of one pass, one Raster per field of
-/// upstream's `SvfViews`. The `svf_aveg` fields are the kernel's
+/// 14 of the 17 fields of upstream's `SvfViews`, one Raster each. The other
+/// three are `svf` and `svfbuveg`, which are the two fields of
+/// [`SkyViewFactor`], and `svfalfa`, which the caller supplies.
+///
+/// Not all of them are directional: `svf_veg` and `svf_aveg` cover the whole
+/// hemisphere, and only the `_n`, `_e`, `_s`, `_w` fields are directional.
+/// The `svf_aveg` fields are the kernel's
 /// `svf_veg_blocks_bldg_sh`: the same quantity under two names.
 #[derive(Debug, Clone)]
 pub struct Direzionali {
