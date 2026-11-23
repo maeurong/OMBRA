@@ -57,7 +57,7 @@ Codice fuori da `//`, poi `\b(pyo3|numpy)::`, `\bPy[A-Z]\w*`, `\bPython\b`, `\bB
 - [ ] **Step 4: Verifica la prova e la copia di oggi**
 
 Run: `python3 -I vendor/solweig/estrai.py --prova` → `0`.
-Run: `python3 -I vendor/solweig/estrai.py <clone> vendor/solweig && git diff --exit-code vendor/solweig/src` → nessuna differenza.
+Run: `python3 -I vendor/solweig/estrai.py <clone> vendor/solweig/src && git diff --exit-code vendor/solweig/src` → nessuna differenza.
 
 - [ ] **Step 5: Commit**
 
@@ -104,7 +104,7 @@ Le classi del dossier §2. T1; T2 sugli attributi `#[pyo3(get, set)]` delle tre 
 - [ ] **Step 5: Verifica**
 
 Run: `python3 -I vendor/solweig/estrai.py --prova` → `0`.
-Run: `python3 -I vendor/solweig/estrai.py <clone> vendor/solweig` → zero residui, ogni conteggio torna.
+Run: `python3 -I vendor/solweig/estrai.py <clone> vendor/solweig/src` → zero residui, ogni conteggio torna.
 Run: `cargo build --manifest-path vendor/solweig/Cargo.toml` → zero errori.
 Run: il cancello di CI di `ombra` → verde, nessun test cambia esito.
 
