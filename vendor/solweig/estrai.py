@@ -39,6 +39,7 @@ feature non è dichiarata nel manifesto vendorato: si compila fuori da sé.
 
 Uso:
     python3 vendor/solweig/estrai.py <clone-di-solweig> [destinazione]
+    python3 vendor/solweig/estrai.py --prova
 """
 
 import re
@@ -223,7 +224,49 @@ def esponi(testo: str, da_esporre: list[str]) -> tuple[str, int]:
     return "\n".join(righe), fatti
 
 
+# Identificatori di Python nel codice: guardare le sottostringhe scattava su
+# commenti e letterali, e non vedeva `PyReadonlyArray2` ne' `Python`.
+IDENTIFICATORI_PYTHON = re.compile(r"\b(pyo3|numpy)::|\bPy[A-Z]\w*|\bPython\b|\bBound<|#\[py")
+
+
+def residui(testo: str) -> list[int]:
+    """I numeri di riga (da 1) con codice Python fuori dai commenti `//`.
+
+    Limite noto: taglia anche un `//` dentro un letterale stringa. Il residuo
+    comparirebbe invece di sparire, quindi l'errore sarebbe rumoroso.
+    """
+    return [
+        n
+        for n, riga in enumerate(testo.split("\n"), 1)
+        if IDENTIFICATORI_PYTHON.search(riga.split("//", 1)[0])
+    ]
+
+
+def prova() -> int:
+    """Esegue i casi della regola dei residui. 0 se tornano tutti, 1 altrimenti."""
+    casi = [
+        ("// a numpy view\nlet x = 1;\n", []),
+        ('let s = "contiguous numpy views";\n', []),
+        ("//! Takes PyArray inputs, as upstream does.\nlet x = 1;\n", []),
+        ("use numpy::PyArray2;\n", [1]),
+        ("fn f(a: PyReadonlyArray2<f32>) {}\n", [1]),
+        ("let p: Python = py;\n", [1]),
+        ("fn f(x: Bound<'_, PyAny>) {}\n", [1]),
+        ("#[pyfunction]\nfn f() {}\n", [1]),
+        ("use pyo3::prelude::*;\n", [1]),
+    ]
+    sbagliati = 0
+    for testo, atteso in casi:
+        trovato = residui(testo)
+        if trovato != atteso:
+            print(f"{testo!r}: attesi {atteso}, trovati {trovato}", file=sys.stderr)
+            sbagliati += 1
+    return int(sbagliati > 0)
+
+
 def main() -> int:
+    if sys.argv[1:] == ["--prova"]:
+        return prova()
     if len(sys.argv) < 2:
         print(__doc__.strip().split("Uso:")[1].strip(), file=sys.stderr)
         return 2
@@ -242,13 +285,13 @@ def main() -> int:
         pulito, tolti, tenuti = estrai(testo, da_tenere, DA_TOGLIERE[nome])
         pulito, firme, errori = senza_pyresult(pulito)
         pulito, esposti = esponi(pulito, da_esporre)
-        residui = sum(
-            1
-            for r in pulito.split("\n")
-            if "pyo3" in r or "numpy" in r or "PyArray" in r or "Py<" in r or "PyResult" in r
-        )
-        if residui:
-            print(f"{nome}: restano {residui} righe che nominano Python", file=sys.stderr)
+        righe_residue = residui(pulito)
+        if righe_residue:
+            print(
+                f"{nome}: restano {len(righe_residue)} righe che nominano Python "
+                f"(da 1): {righe_residue}",
+                file=sys.stderr,
+            )
             return 1
         (destinazione / nome).write_text(pulito, encoding="utf-8")
         prima = len(testo.split("\n"))

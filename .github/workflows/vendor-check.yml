@@ -40,6 +40,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: La regola dei residui passa la sua prova
+        run: python3 -I vendor/solweig/estrai.py --prova
+
       - name: Riesegui l'estrazione sul commit pinnato e confronta
         run: |
           set -euo pipefail
