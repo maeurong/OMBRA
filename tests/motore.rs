@@ -10,7 +10,11 @@ use ombra::derivazione::{
     TRASMISSIVITA_SENZA_FOGLIE,
 };
 use ombra::dominio::Data;
-use ombra::motore::{ombre, sky_view_factor, versione, SkyViewFactor, ALTEZZA_MINIMA_GRADI};
+use ombra::motore::{
+    self, ombre, sky_view_factor, versione, HumanScalars, IngressiDelloScenario, Muri,
+    PassataDelCielo, PassoDelloScenario, ProprietaDelSuolo, SkyViewFactor, StatoTermico,
+    WeatherScalars, ALTEZZA_MINIMA_GRADI,
+};
 use ombra::sole::{posizione, PosizioneSolare};
 
 /// Bastia Umbra, the reference case: the coordinates read from the model, not
@@ -1081,4 +1085,231 @@ fn la_copia_espone_cio_che_il_passo_chiede() {
         ConfigScalars,
         GvfGeometryCache,
     )> = None;
+}
+
+// --- The fused timestep -----------------------------------------------------
+//
+// One Ora of the vendored step: shadows, ground and wall temperatures, view
+// factors, radiation and Tmrt, on what the Derivazione and the sky pass hand
+// over.
+
+/// Everything a [`PassoDelloScenario`] borrows, owned, for a flat open domain
+/// with no Edificio, no canopy and walls of zero height.
+struct PianoAperto {
+    dsm: Raster,
+    costruite: Raster,
+    muri: Muri,
+    cielo: PassataDelCielo,
+    svfalfa: Raster,
+    suolo: ProprietaDelSuolo,
+    verso_il_cielo: Raster,
+}
+
+fn piano_aperto(lato: usize) -> PianoAperto {
+    let dsm = Raster::zeros((lato, lato));
+    let cielo = motore::cielo(&dsm, 1.0, &[], false).expect("la passata del cielo di prova");
+    PianoAperto {
+        costruite: Raster::zeros((lato, lato)),
+        muri: Muri {
+            altezza: Raster::zeros((lato, lato)),
+            orientamento_gradi: Raster::zeros((lato, lato)),
+        },
+        cielo,
+        // arcsin(sqrt(1 - (svf + svf_veg - 1))) with both at 1, as upstream's
+        // `pysrc/solweig/components/svf_resolution.py:98-100` computes it.
+        svfalfa: Raster::zeros((lato, lato)),
+        suolo: ProprietaDelSuolo {
+            albedo: Raster::from_elem((lato, lato), 0.20),
+            emissivita: Raster::from_elem((lato, lato), 0.95),
+            tgk: Raster::from_elem((lato, lato), 0.37),
+            tstart: Raster::from_elem((lato, lato), -3.41),
+            tmaxlst: Raster::from_elem((lato, lato), 15.0),
+        },
+        verso_il_cielo: Raster::ones((lato, lato)),
+        dsm,
+    }
+}
+
+impl PianoAperto {
+    fn ingressi(&self, anisotropo: bool) -> IngressiDelloScenario<'_> {
+        IngressiDelloScenario {
+            modello_di_superficie: &self.dsm,
+            passo_m: 1.0,
+            strati: &[],
+            costruite: &self.costruite,
+            muri: &self.muri,
+            cielo: &self.cielo,
+            svfalfa: &self.svfalfa,
+            suolo: &self.suolo,
+            trasmissivita_verso_il_cielo: &self.verso_il_cielo,
+            persona: HumanScalars {
+                height: 1.1,
+                abs_k: 0.7,
+                abs_l: 0.95,
+                is_standing: true,
+            },
+            anisotropo,
+        }
+    }
+}
+
+fn mezzogiorno_estivo() -> WeatherScalars {
+    WeatherScalars {
+        sun_azimuth: 180.0,
+        sun_altitude: 60.0,
+        sun_zenith: 30.0,
+        ta: 30.0,
+        rh: 50.0,
+        global_rad: 800.0,
+        direct_rad: 700.0,
+        diffuse_rad: 150.0,
+        altmax: 66.0,
+        clearness_index: 0.85,
+        dectime: 196.5,
+        snup: 5.5,
+        rad_g0: 850.0,
+        zen_deg: 30.0,
+        is_daytime: true,
+        jday: 196,
+        patch_option: 2,
+    }
+}
+
+/// Upstream's initial state, `pysrc/solweig/models/state.py:61-83`, except for
+/// `timestep_dec`, which upstream sets to the step right after
+/// (`pysrc/solweig/timeseries.py:587-588`): an hour here.
+fn stato_iniziale(forma: (usize, usize)) -> StatoTermico {
+    StatoTermico {
+        firstdaytime: 1,
+        timeadd: 0.0,
+        timestep_dec: 1.0 / 24.0,
+        tgmap1: Raster::zeros(forma),
+        tgmap1_e: Raster::zeros(forma),
+        tgmap1_s: Raster::zeros(forma),
+        tgmap1_w: Raster::zeros(forma),
+        tgmap1_n: Raster::zeros(forma),
+        tgout1: Raster::zeros(forma),
+    }
+}
+
+#[test]
+fn il_passo_rifiuta_un_raster_di_forma_diversa() {
+    let mut piano = piano_aperto(5);
+    piano.svfalfa = Raster::zeros((4, 5));
+    let Err(messaggio) = PassoDelloScenario::nuovo(piano.ingressi(false)) else {
+        panic!("un svfalfa 4 x 5 su un modello di superficie 5 x 5 è stato accettato");
+    };
+    assert!(
+        messaggio.contains("svfalfa"),
+        "il messaggio non nomina il raster sbagliato: {messaggio}"
+    );
+}
+
+#[test]
+fn l_ora_rifiuta_un_raggio_di_forma_diversa() {
+    let piano = piano_aperto(5);
+    let Ok(passo) = PassoDelloScenario::nuovo(piano.ingressi(false)) else {
+        panic!("il passo sul piano aperto");
+    };
+    let stato = stato_iniziale((5, 5));
+    // The second shape broadcasts against 5 x 5 without complaint inside the
+    // copy: only a check of our own refuses it.
+    for forma in [(5, 4), (1, 1)] {
+        assert!(
+            passo
+                .ora(&mezzogiorno_estivo(), &Raster::ones(forma), &stato)
+                .is_err(),
+            "un raggio {forma:?} su un modello di superficie 5 x 5 è stato accettato"
+        );
+    }
+}
+
+#[test]
+fn anisotropo_senza_matrici_si_ferma() {
+    let piano = piano_aperto(5);
+    assert!(piano.cielo.matrici.is_none());
+    assert!(
+        PassoDelloScenario::nuovo(piano.ingressi(true)).is_err(),
+        "il cielo anisotropo è partito senza le matrici d'ombra"
+    );
+}
+
+#[test]
+fn il_passo_su_un_piano_aperto_e_finito() {
+    let piano = piano_aperto(8);
+    let Ok(passo) = PassoDelloScenario::nuovo(piano.ingressi(false)) else {
+        panic!("il passo sul piano aperto");
+    };
+    let meteo = mezzogiorno_estivo();
+    let uscita = passo
+        .ora(&meteo, &Raster::ones((8, 8)), &stato_iniziale((8, 8)))
+        .expect("un'Ora di mezzogiorno estivo");
+
+    for &tmrt in &uscita.temperatura_media_radiante {
+        assert!(
+            tmrt.is_finite() && tmrt > meteo.ta - 30.0 && tmrt < meteo.ta + 70.0,
+            "Tmrt {tmrt} fuori da ogni plausibilità con Ta {}",
+            meteo.ta
+        );
+    }
+    assert!(
+        uscita.illuminata.iter().all(|&v| v == 1.0),
+        "una cella in ombra su un piano aperto a mezzogiorno"
+    );
+    assert!(
+        uscita.k_giu.iter().all(|&v| v > 0.0),
+        "una cella senza radiazione a onda corta col sole a 60 gradi"
+    );
+    assert_eq!(
+        uscita.stato.firstdaytime, 1,
+        "firstdaytime non passa invariato"
+    );
+    assert_eq!(uscita.stato.timestep_dec, 1.0 / 24.0);
+}
+
+#[test]
+fn cielo_conserva_le_matrici_solo_se_chiesto() {
+    let dsm = torre(7, 0.0);
+    let strati = [bosco("prova", 0.3, 7, 1, 5.0)];
+    assert!(motore::cielo(&dsm, 1.0, &strati, false)
+        .expect("la passata senza matrici")
+        .matrici
+        .is_none());
+    let matrici = motore::cielo(&dsm, 1.0, &strati, true)
+        .expect("la passata con le matrici")
+        .matrici
+        .expect("le matrici chieste");
+    // The 153 patches of option 2, one bit each: ceil(153 / 8) bytes.
+    for matrice in [
+        &matrici.edifici,
+        &matrici.chiome,
+        &matrici.chiome_davanti_agli_edifici,
+    ] {
+        assert_eq!(matrice.dim(), (7, 7, 20));
+    }
+}
+
+#[test]
+fn senza_chiome_i_campi_della_vegetazione_valgono_uno() {
+    let passata = motore::cielo(&torre(7, 0.0), 1.0, &[], false).expect("la passata del cielo");
+    let d = &passata.direzionali;
+    for (nome, campo) in [
+        ("svf_veg", &d.svf_veg),
+        ("svf_veg_n", &d.svf_veg_n),
+        ("svf_veg_e", &d.svf_veg_e),
+        ("svf_veg_s", &d.svf_veg_s),
+        ("svf_veg_w", &d.svf_veg_w),
+        ("svf_aveg", &d.svf_aveg),
+        ("svf_aveg_n", &d.svf_aveg_n),
+        ("svf_aveg_e", &d.svf_aveg_e),
+        ("svf_aveg_s", &d.svf_aveg_s),
+        ("svf_aveg_w", &d.svf_aveg_w),
+    ] {
+        assert!(
+            campo.iter().all(|&v| v == 1.0),
+            "{nome} non vale uno ovunque senza chiome"
+        );
+    }
+    assert!(passata.volta_coperta.iter().all(|&v| v == 0.0));
+    assert!(passata.detrazione.iter().all(|&v| v == 0.0));
 }
