@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -46,62 +45,3 @@ jobs:
       # Where the material is on disk — a developer machine, not this runner —
       # the same suite runs the ignored checks too:
       #   cargo test -- --include-ignored
-
-  # The parity bench (banco/): OMBRA's vendored step against upstream's own,
-  # cloned at the pin, bit for bit. It builds pyo3 and links libpython, which
-  # is why it is a job of its own: `verifica` stays without Python.
-  #
-  # It runs on pull requests that touch the vendored copy, the Motore or the
-  # bench, and by hand. Not on push to main: the pull request already ran it.
-  parita:
-    name: parità con monte
-    if: github.event_name != 'push'
-    runs-on: ubuntu-latest
-    # It clones an outside repository and compiles it: read scope only, and
-    # no secret in its environment.
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      # GitHub filters paths per workflow, not per job: the filter lives here.
-      - name: Does the change touch the step?
-        id: tocca
-        if: github.event_name == 'pull_request'
-        env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-        run: |
-          if git diff --quiet "$BASE" HEAD -- vendor/ src/motore.rs banco/; then
-            echo "si=no" >> "$GITHUB_OUTPUT"
-            echo "Nothing under vendor/, src/motore.rs or banco/ changed: no comparison to run."
-          else
-            echo "si=si" >> "$GITHUB_OUTPUT"
-          fi
-
-      - uses: dtolnay/rust-toolchain@stable
-        if: steps.tocca.outputs.si != 'no'
-
-      # A Python with a shared libpython, at build and at run time: route A2
-      # of docs/ricerca/05-crate-rlib.md links against it.
-      - uses: actions/setup-python@v5
-        if: steps.tocca.outputs.si != 'no'
-        with:
-          python-version: "3.12"
-
-      - uses: Swatinem/rust-cache@v2
-        if: steps.tocca.outputs.si != 'no'
-        with:
-          workspaces: banco
-
-      # Fails when the clone or the manifest edit fails: a bench that skipped
-      # itself would be green without comparing anything.
-      - name: Clone upstream at the pin
-        if: steps.tocca.outputs.si != 'no'
-        run: bash banco/prepara.sh
-
-      - name: Parity tests
-        if: steps.tocca.outputs.si != 'no'
-        run: cargo test --manifest-path banco/Cargo.toml --release

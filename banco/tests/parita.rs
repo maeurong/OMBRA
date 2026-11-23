@@ -22,6 +22,7 @@ use ombra::motore::{
 use ombra::sole::posizione;
 use rayon::ThreadPool;
 use rustalgos::api as monte;
+use std::ops::Range;
 
 const LATO: usize = 16;
 const FORMA: (usize, usize) = (LATO, LATO);
@@ -269,7 +270,7 @@ impl LatoOmbra {
         }
     }
 
-    fn passo<'a>(&'a self, sc: &'a Scenario) -> PassoDelloScenario<'a> {
+    fn passo<'a>(&'a self, sc: &'a Scenario, anisotropo: bool) -> PassoDelloScenario<'a> {
         PassoDelloScenario::nuovo(IngressiDelloScenario {
             modello_di_superficie: &sc.dsm,
             passo_m: f64::from(PASSO_M),
@@ -281,7 +282,7 @@ impl LatoOmbra {
             suolo: &sc.suolo,
             trasmissivita_verso_il_cielo: &self.verso_il_cielo,
             persona: PERSONA,
-            anisotropo: true,
+            anisotropo,
         })
         .expect("il passo di OMBRA")
     }
@@ -311,7 +312,7 @@ fn rilievo_di_monte(dsm: &Raster, cdsm: &Raster) -> f32 {
 }
 
 impl LatoMonte {
-    fn nuovo(sc: &Scenario, pool: &ThreadPool) -> Self {
+    fn nuovo(sc: &Scenario, pool: &ThreadPool, anisotropo: bool) -> Self {
         let max_height = rilievo_di_monte(&sc.dsm, &sc.chiome);
         // The arguments of `SurfaceData.compute_svf`, `surface.py:1406-1416`:
         // 153 patches, 3 degrees, and no cap on the shadow, as the pyfunction
@@ -362,7 +363,7 @@ impl LatoMonte {
             use_veg: true,
             has_walls: true,
             conifer: false,
-            use_anisotropic: true,
+            use_anisotropic: anisotropo,
             max_shadow_distance_m: 1000.0,
         };
         Self {
@@ -385,6 +386,9 @@ impl LatoMonte {
         psi: f32,
         stato: &StatoTermico,
     ) -> monte::TimestepResultRaw {
+        // Without the anisotropic sky upstream's Python hands no shadow
+        // matrices (`computation.py:497-499`).
+        let aniso = self.config.use_anisotropic;
         // `adjust_svfbuveg_with_psi`, `svf_resolution.py:140-142`, with the
         // `psi` of the step, as `computation.py:318` passes it.
         let svfbuveg = Zip::from(&self.svf.svf)
@@ -408,8 +412,9 @@ impl LatoMonte {
             psi,
             is_daytime: meteo.is_daytime,
             jday: meteo.jday,
-            // The option of the shadow matrices, `computation.py:519`.
-            patch_option: 2,
+            // The option of the shadow matrices with the anisotropic sky
+            // (`computation.py:519`), 0 without (`:386`).
+            patch_option: if aniso { 2 } else { 0 },
         };
         let persona = monte::HumanScalars {
             height: PERSONA.height,
@@ -459,9 +464,9 @@ impl LatoMonte {
             },
             buildings: sc.edifici_di_monte.view(),
             lc_grid: None,
-            shmat: Some(svf.bldg_sh_matrix.view()),
-            vegshmat: Some(svf.veg_sh_matrix.view()),
-            vbshmat: Some(svf.veg_blocks_bldg_sh_matrix.view()),
+            shmat: aniso.then(|| svf.bldg_sh_matrix.view()),
+            vegshmat: aniso.then(|| svf.veg_sh_matrix.view()),
+            vbshmat: aniso.then(|| svf.veg_blocks_bldg_sh_matrix.view()),
             state: monte::ThermalStateViews {
                 firstdaytime: stato.firstdaytime,
                 timeadd: stato.timeadd,
@@ -554,8 +559,8 @@ fn con_trasmissivita_costanti_il_passo_e_monte_bit_per_bit() {
     let sc = scenario();
     let pool = pool_a_un_thread();
     let lato_ombra = LatoOmbra::nuovo(&sc, 0.03, 0.03);
-    let passo = lato_ombra.passo(&sc);
-    let lato_monte = LatoMonte::nuovo(&sc, &pool);
+    let passo = lato_ombra.passo(&sc, true);
+    let lato_monte = LatoMonte::nuovo(&sc, &pool, true);
     let raggio = Raster::from_elem(FORMA, 0.03);
 
     let mut stato_ombra = stato_iniziale();
@@ -631,8 +636,8 @@ fn raggio_e_cielo_non_si_scambiano() {
     // `svfbuveg` agree and a difference in `kdown` can only come from the
     // sky transmissivity the step reads patch by patch.
     let lato_ombra = LatoOmbra::nuovo(&sc, 0.5, 0.03);
-    let passo = lato_ombra.passo(&sc);
-    let lato_monte = LatoMonte::nuovo(&sc, &pool);
+    let passo = lato_ombra.passo(&sc, true);
+    let lato_monte = LatoMonte::nuovo(&sc, &pool, true);
     let meteo = &le_sei_ore()[0];
 
     let o = passo
@@ -661,8 +666,8 @@ fn la_trasmissivita_si_legge_cella_per_cella() {
     let sc = scenario();
     let pool = pool_a_un_thread();
     let lato_ombra = LatoOmbra::nuovo(&sc, 0.03, 0.03);
-    let passo = lato_ombra.passo(&sc);
-    let lato_monte = LatoMonte::nuovo(&sc, &pool);
+    let passo = lato_ombra.passo(&sc, true);
+    let lato_monte = LatoMonte::nuovo(&sc, &pool, true);
     let meteo = &le_sei_ore()[0];
 
     let mut raggio = Raster::from_elem(FORMA, 0.03);
@@ -696,4 +701,150 @@ fn la_trasmissivita_si_legge_cella_per_cella() {
         illuminata.slice(s![.., MEZZERIA..]),
         con_05.slice(s![.., MEZZERIA..]),
     );
+}
+
+/// 0.03 on the west half, 0.5 on the east.
+fn a_meta() -> Raster {
+    let mut raster = Raster::from_elem(FORMA, 0.03);
+    raster.slice_mut(s![.., MEZZERIA..]).fill(0.5);
+    raster
+}
+
+/// The west half of `ombra` against `con_003`, the east half against `con_05`.
+fn per_meta(nome: &str, ombra: &Raster, con_003: &Raster, con_05: &Raster) {
+    stessi_bit(
+        &format!("{nome}, metà ovest a 0,03"),
+        ombra.slice(s![.., ..MEZZERIA]),
+        con_003.slice(s![.., ..MEZZERIA]),
+    );
+    stessi_bit(
+        &format!("{nome}, metà est a 0,5"),
+        ombra.slice(s![.., MEZZERIA..]),
+        con_05.slice(s![.., MEZZERIA..]),
+    );
+}
+
+/// Whether some cell of the half `colonne` differs between the two fields.
+fn qualche_cella_diversa(colonne: Range<usize>, a: &Raster, b: &Raster) -> bool {
+    Zip::from(a.slice(s![.., colonne.clone()]))
+        .and(b.slice(s![.., colonne]))
+        .fold(false, |trovata, x, y| trovata || x.to_bits() != y.to_bits())
+}
+
+#[test]
+fn le_due_trasmissivita_si_leggono_cella_per_cella_in_entrambi_i_cieli() {
+    let sc = scenario();
+    let pool = pool_a_un_thread();
+    let meta = a_meta();
+    // OMBRA's `svfbuveg` takes the one transmissivity of the layer, upstream's
+    // the scalar `psi`: each half gets the field of a sky pass at its own
+    // value. The field is `svf - (1 - svf_veg) * (1 - psi)` cell by cell, and
+    // `svf`, `svf_veg` do not depend on the transmissivity, so the splice is
+    // exactly what a per-cell transmissivity gives.
+    let mut lato_ombra = LatoOmbra::nuovo(&sc, 0.03, 0.03);
+    lato_ombra.verso_il_cielo = meta.clone();
+    let a_05 = LatoOmbra::nuovo(&sc, 0.5, 0.5);
+    lato_ombra
+        .cielo
+        .sky_view_factor
+        .con_le_chiome
+        .slice_mut(s![.., MEZZERIA..])
+        .assign(
+            &a_05
+                .cielo
+                .sky_view_factor
+                .con_le_chiome
+                .slice(s![.., MEZZERIA..]),
+        );
+
+    for anisotropo in [true, false] {
+        let cielo = if anisotropo { "anisotropo" } else { "isotropo" };
+        let passo = lato_ombra.passo(&sc, anisotropo);
+        let lato_monte = LatoMonte::nuovo(&sc, &pool, anisotropo);
+        let mut stato_ombra = stato_iniziale();
+        let (mut stato_003, mut stato_05) = (stato_iniziale(), stato_iniziale());
+        let mut ore_senza_raggio = 0;
+
+        for (indice, meteo) in le_sei_ore().iter().enumerate() {
+            let ora = indice + 1;
+            let o = passo
+                .ora(meteo, &meta, &stato_ombra)
+                .expect("un'Ora del passo di OMBRA");
+            let esito_003 = lato_monte.ora(&sc, &pool, meteo, 0.03, &stato_003);
+            let esito_05 = lato_monte.ora(&sc, &pool, meteo, 0.5, &stato_05);
+            let (m_003, m_05) = (uscite(&esito_003), uscite(&esito_05));
+
+            // Shadow and Kdown are computed cell by cell from that cell's
+            // transmissivities: exact at every cell and every Ora.
+            per_meta(
+                &format!("cielo {cielo}, Ora {ora}, shadow"),
+                &o.illuminata,
+                m_003.shadow,
+                m_05.shadow,
+            );
+            per_meta(
+                &format!("cielo {cielo}, Ora {ora}, kdown"),
+                &o.k_giu,
+                m_003.kdown,
+                m_05.kdown,
+            );
+            if ora == 1 {
+                for (meta_nome, colonne) in [("ovest", 0..MEZZERIA), ("est", MEZZERIA..LATO)] {
+                    assert!(
+                        qualche_cella_diversa(colonne, m_003.kdown, m_05.kdown),
+                        "cielo {cielo}: nella metà {meta_nome} kdown non dipende dalla \
+                         trasmissività, e quella metà non prova niente"
+                    );
+                }
+            }
+
+            // Tmrt, Kup, Lup and the anisotropic Ldown also read the ground
+            // around a cell, through the ground view factor, as far as
+            // `second_ht` = 22 cells: the whole 16-cell domain. Measured with
+            // the beam split too, at Ore 1-5 they differ from upstream at
+            // either psi in up to every column of the half, so no distance
+            // from the split column makes them exact here. They enter the
+            // ground view factor only through the shadow: in an Ora whose
+            // shadow does not depend on psi (the last, with the sun at 2.6
+            // degrees, below the step's 3-degree shadow floor) they were
+            // bit-equal on all 256 cells, in both skies.
+            if m_003.shadow == m_05.shadow {
+                ore_senza_raggio += 1;
+                for (nome, ombra, con_003, con_05) in [
+                    (
+                        "tmrt",
+                        &o.temperatura_media_radiante,
+                        &esito_003.tmrt,
+                        &esito_05.tmrt,
+                    ),
+                    ("kup", &o.k_su, m_003.kup, m_05.kup),
+                    ("ldown", &o.l_giu, m_003.ldown, m_05.ldown),
+                    ("lup", &o.l_su, m_003.lup, m_05.lup),
+                ] {
+                    per_meta(
+                        &format!("cielo {cielo}, Ora {ora} senza raggio, {nome}"),
+                        ombra,
+                        con_003,
+                        con_05,
+                    );
+                }
+                for (meta_nome, colonne) in [("ovest", 0..MEZZERIA), ("est", MEZZERIA..LATO)] {
+                    assert!(
+                        qualche_cella_diversa(colonne, &esito_003.tmrt, &esito_05.tmrt),
+                        "cielo {cielo}, Ora {ora}: nella metà {meta_nome} Tmrt non dipende \
+                         dalla trasmissività"
+                    );
+                }
+            }
+
+            stato_ombra = o.stato;
+            stato_003 = stato_di_monte(&stato_003, &esito_003);
+            stato_05 = stato_di_monte(&stato_05, &esito_05);
+        }
+        assert!(
+            ore_senza_raggio > 0,
+            "cielo {cielo}: nessuna Ora con l'ombra indipendente dalla trasmissività, \
+             Tmrt non è stata confrontata"
+        );
+    }
 }

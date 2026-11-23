@@ -42,7 +42,7 @@ dipendenza, e lo segnala a ogni compilazione.
 Un ingresso costruito nel test, 16 × 16 celle a 1 m: un Edificio di 4 × 4 celle
 alto 6 m, un Albero con chioma da 5 a 8 m e zona tronco fino a 2 m, Muri ricavati
 dalla copia vendorata di `compute_wall_aspect_pure`, suolo uniforme ai valori
-della classe 1 di monte, cielo anisotropo, persona in piedi. Sei Ore del
+della classe 1 di monte, persona in piedi, cielo anisotropo nei primi tre casi. Sei Ore del
 21 giugno, dalle 14 alle 20, a 43,07 N 12,55 E. Entrambi i lati girano in un pool
 `rayon` a un thread.
 
@@ -60,15 +60,21 @@ lo stesso errore, e il confronto gli darebbe ragione.
   a monte con `psi = 0.5`, `kdown` sotto la chioma diverso.
 - `la_trasmissivita_si_legge_cella_per_cella`: raggio a 0,03 a ovest e a 0,5 a
   est. Ciascuna metà di `shadow` uguale a monte con il proprio `psi`.
+- `le_due_trasmissivita_si_leggono_cella_per_cella_in_entrambi_i_cieli`: raggio e
+  cielo a 0,03 a ovest e a 0,5 a est, con il cielo anisotropo e con quello
+  isotropo. In ogni Ora, ciascuna metà di `shadow` e `kdown` uguale a monte con il
+  proprio `psi`. `tmrt`, `kup`, `ldown` e `lup` si confrontano solo nell'Ora in cui
+  l'ombra non dipende da `psi`, l'ultima, col sole sotto i 3 gradi.
 
 ## Cosa non vede
 
-- Il cielo isotropo. I tre casi sono anisotropi, quindi le quattro righe di
-  `vegetation.rs` che ADR 0004 cambia non vengono eseguite: un errore lì lascia
-  il banco verde.
-- Una lettura della prima cella nel cielo anisotropo. Il cielo è costante in
-  tutti e tre i casi, e su un raster costante `psi[[0, 0]]` e `psi[[r, c]]`
-  hanno lo stesso valore.
+- `tmrt`, `kup`, `ldown` e `lup` nelle Ore di sole del quarto caso. Leggono il
+  suolo intorno alla cella fino a 22 celle di distanza, quindi su 16 celle
+  ciascuna metà risente dell'ombra dell'altra. Misurato: in quelle Ore
+  differiscono da monte fino in tutte le colonne di una metà, e nessuna distanza
+  dalla mezzeria basta a renderle esatte.
+- Uno scambio fra raggio e cielo nel quarto caso, dove i due raster sono uguali.
+  Lo vede il secondo caso.
 - La preparazione dei dati di monte. Le chiome arrivano ai due lati con `NaN`
   dove non c'è albero, come le porta uno Strato di chioma; il Python di monte le
   riempirebbe con la quota del suolo (`fill_nan`). Il banco verifica il passo,
