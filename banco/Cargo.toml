@@ -1,0 +1,24 @@
+[package]
+name = "banco"
+version = "0.0.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Parity bench: OMBRA's vendored timestep against upstream solweig's own, bit for bit"
+publish = false
+
+# Only tests: the bench has no library and no binary of its own.
+[dev-dependencies]
+ombra = { path = ".." }
+# For `compute_wall_aspect_pure`, which the clone keeps `pub(crate)`. The Muri
+# are an input, the same on both sides.
+solweig-vendorato = { path = "../vendor/solweig" }
+# The clone `prepara.sh` checks out at the vendored pin. Without
+# `default-features = false` the `gpu` feature would pull in wgpu and run the
+# step on a GPU where there is one, off the CPU path OMBRA takes.
+rustalgos = { path = "monte/rust", default-features = false }
+ndarray = "0.16.1"
+rayon = "1"
+
+# A workspace of its own: neither OMBRA's nor upstream's, so pyo3 and the
+# clone never enter OMBRA's lockfile or its binary.
+[workspace]

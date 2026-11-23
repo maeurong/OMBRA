@@ -9,3 +9,6 @@ casi/bastia/progetto/corse/
 vendor/solweig/target/
 vendor/solweig/Cargo.lock
 vendor/solweig/__pycache__/
+# Il banco di parità: il clone di monte lo rifà prepara.sh, il target cargo.
+banco/monte/
+banco/target/
