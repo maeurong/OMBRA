@@ -23,7 +23,6 @@ pub struct WeatherScalars {
     pub snup: f32,
     pub rad_g0: f32,
     pub zen_deg: f32,
-    pub psi: f32,
     pub is_daytime: bool,
     pub jday: i32,
     pub patch_option: i32,
@@ -53,7 +52,6 @@ pub struct ConfigScalars {
     pub tmaxlst_wall: f32,
     pub use_veg: bool,
     pub has_walls: bool,
-    pub conifer: bool,
     pub use_anisotropic: bool,
     pub max_shadow_distance_m: f32,
 }

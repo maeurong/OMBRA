@@ -358,7 +358,7 @@ pub(crate) fn kside_veg_isotropic_pure(
     svfNveg: ArrayView2<f32>,
     azimuth: f32,
     altitude: f32,
-    psi: f32,
+    psi: ArrayView2<f32>,
     t: f32,
     albedo: f32,
     F_sh: ArrayView2<f32>,
@@ -408,13 +408,13 @@ pub(crate) fn kside_veg_isotropic_pure(
                 }
             }
             let (vveg, vwall) = kvikt_veg(svfE[(r, c)], svfEveg[(r, c)], vikttot);
-            svfviktbuvegE[(r, c)] = vwall + vveg * (1.0 - psi);
+            svfviktbuvegE[(r, c)] = vwall + vveg * (1.0 - psi[(r, c)]);
             let (vveg, vwall) = kvikt_veg(svfS[(r, c)], svfSveg[(r, c)], vikttot);
-            svfviktbuvegS[(r, c)] = vwall + vveg * (1.0 - psi);
+            svfviktbuvegS[(r, c)] = vwall + vveg * (1.0 - psi[(r, c)]);
             let (vveg, vwall) = kvikt_veg(svfW[(r, c)], svfWveg[(r, c)], vikttot);
-            svfviktbuvegW[(r, c)] = vwall + vveg * (1.0 - psi);
+            svfviktbuvegW[(r, c)] = vwall + vveg * (1.0 - psi[(r, c)]);
             let (vveg, vwall) = kvikt_veg(svfN[(r, c)], svfNveg[(r, c)], vikttot);
-            svfviktbuvegN[(r, c)] = vwall + vveg * (1.0 - psi);
+            svfviktbuvegN[(r, c)] = vwall + vveg * (1.0 - psi[(r, c)]);
         }
     }
 

@@ -376,7 +376,7 @@ pub(crate) fn compute_ani_lum_from_packed(
     shmat: ArrayView3<u8>,
     vegshmat: ArrayView3<u8>,
     lv_lum: ArrayView1<f32>,
-    psi: f32,
+    psi: ArrayView2<f32>,
     valid: ArrayView2<u8>,
 ) -> Array2<f32> {
     let (rows, cols, _) = shmat.dim();
@@ -400,7 +400,7 @@ pub(crate) fn compute_ani_lum_from_packed(
                 let bit = i & 7;
                 let sh = ((shmat[[r, c, byte]] >> bit) & 1) as f32;
                 let vsh = ((vegshmat[[r, c, byte]] >> bit) & 1) as f32;
-                let diff = sh - (1.0 - vsh) * (1.0 - psi);
+                let diff = sh - (1.0 - vsh) * (1.0 - psi[[r, c]]);
                 sum += diff * lv_lum[i];
             }
             *v = sum;
@@ -419,7 +419,7 @@ pub(crate) fn compute_ani_lum_from_packed(
                     let bit = i & 7;
                     let sh = ((shmat[[r, c, byte]] >> bit) & 1) as f32;
                     let vsh = ((vegshmat[[r, c, byte]] >> bit) & 1) as f32;
-                    let diff = sh - (1.0 - vsh) * (1.0 - psi);
+                    let diff = sh - (1.0 - vsh) * (1.0 - psi[[r, c]]);
                     sum += diff * lv_lum[i];
                 }
                 out[[r, c]] = sum;

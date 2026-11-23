@@ -27,6 +27,12 @@ per un letterale e per un `format!`, dentro e fuori dal percorso GPU. Il
 conteggio atteso è dichiarato per file: se a monte cambia, lo script si ferma
 invece di sostituire meno del previsto.
 
+E ne cambia una seconda, che e' di significato: la trasmissivita' delle chiome
+entra per cella, come due raster, al posto dello scalare `weather.psi` (ADR 0004
+di OMBRA, regole in `TRASMISSIVITA`), e i campi `psi` e `conifer` escono dagli
+scalari. Con i due raster costanti il passo deve dare le uscite di monte byte
+per byte.
+
 **La trappola.** Quegli elementi sono spesso preceduti da `#[cfg(feature =
 "gpu")]` o da doc-comment. Togliendo solo la funzione, l'attributo resta
 orfano e si attacca all'elemento seguente: nel caso reale questo cancellava in
@@ -222,7 +228,55 @@ CONTEGGI = {
     "use_multiriga": {"sky.rs": 1},
     "attributi_di_campo": {"pipeline_scalars.rs": 34},
     "pub_use_bundles": {"pipeline.rs": 1},
+    "campi_tolti": {"pipeline_scalars.rs": 2},
 }
+
+# ADR 0004 di OMBRA: la trasmissivita' delle chiome entra per cella, come due
+# raster, al posto dello scalare `weather.psi`. E' la trasformazione additiva
+# dichiarata in PROVENIENZA.toml. Ogni voce e' testo di monte, testo nuovo e
+# quante volte il testo di monte deve comparire nel file, dopo le rimozioni:
+# in `vegetation.rs` la gemella `#[pyfunction] kside_veg` e' gia' tolta, e i
+# suoi quattro testi uguali non contano.
+#
+# Si sostituiscono le legature `let psi = …`, non le chiamate: le chiamate
+# leggono il nome `psi` e seguono da sole, compresa quella dietro la feature
+# `gpu`, che con un raster al posto di uno scalare non compilerebbe piu'.
+TRASMISSIVITA = {
+    "pipeline_inputs.rs": [
+        (
+            "    pub vbshmat: Option<ArrayView3<'a, u8>>,\n",
+            "    pub vbshmat: Option<ArrayView3<'a, u8>>,\n"
+            "    /// Canopy transmissivity along the sun's beam, per pixel (OMBRA ADR 0004).\n"
+            "    pub trasmissivita_raggio: ArrayView2<'a, f32>,\n"
+            "    /// Canopy transmissivity towards the sky vault, per pixel (OMBRA ADR 0004).\n"
+            "    pub trasmissivita_cielo: ArrayView2<'a, f32>,\n",
+            1,
+        ),
+    ],
+    "pipeline.rs": [
+        (
+            "    let vbshmat_v = inputs.vbshmat;\n",
+            "    let vbshmat_v = inputs.vbshmat;\n"
+            "    let trasmissivita_raggio_v = inputs.trasmissivita_raggio;\n"
+            "    let trasmissivita_cielo_v = inputs.trasmissivita_cielo;\n",
+            1,
+        ),
+        ("* (1.0 - weather.psi))", "* (1.0 - &trasmissivita_raggio_v))", 1),
+        ("let psi = weather.psi;", "let psi = trasmissivita_cielo_v;", 2),
+    ],
+    "pipeline_radiation.rs": [
+        ("    psi: f32,\n", "    psi: ArrayView2<f32>,\n", 1),
+        ("* (1.0 - psi);", "* (1.0 - psi[[r, c]]);", 2),
+    ],
+    "vegetation.rs": [
+        ("    psi: f32,\n", "    psi: ArrayView2<f32>,\n", 1),
+        ("vveg * (1.0 - psi);", "vveg * (1.0 - psi[(r, c)]);", 4),
+    ],
+}
+
+# I campi degli scalari che nessuna riga compilata legge piu': `psi` dopo la
+# sostituzione qui sopra, `conifer` gia' a monte.
+CAMPI_TOLTI = ("pub psi: f32,", "pub conifer: bool,")
 
 
 def dichiarazione(righe: list[str], i: int) -> str:
@@ -398,6 +452,21 @@ def senza_pub_use_bundles(testo: str) -> tuple[str, int]:
     return "\n".join(fuori), fatti
 
 
+def senza_campi_tolti(testo: str) -> tuple[str, int]:
+    """Toglie i campi di `CAMPI_TOLTI` e i commenti `///` che li precedono."""
+    righe = testo.split("\n")
+    fuori: list[str] = []
+    fatti = 0
+    for riga in righe:
+        if riga.strip() in CAMPI_TOLTI:
+            while fuori and fuori[-1].lstrip().startswith("///"):
+                fuori.pop()
+            fatti += 1
+            continue
+        fuori.append(riga)
+    return "\n".join(fuori), fatti
+
+
 def verifica(nome: str, regola: str, trovati: int, attesi: int) -> int:
     """0 se la regola e' scattata quanto dichiarato, 1 e un messaggio altrimenti."""
     if trovati == attesi:
@@ -470,6 +539,20 @@ def prova() -> int:
             "pub fn compute_wall_aspect_pure(\n",
             1,
         ),
+        # La forma al pin: l'attributo l'ha gia' tolto `senza_attributi_di_campo`.
+        (
+            senza_campi_tolti,
+            "    pub zen_deg: f32,\n    pub psi: f32,\n    pub is_daytime: bool,\n",
+            "    pub zen_deg: f32,\n    pub is_daytime: bool,\n",
+            1,
+        ),
+        # Un commento lasciato sopra un campo tolto descriverebbe il campo seguente.
+        (
+            senza_campi_tolti,
+            "    pub has_walls: bool,\n    /// Never read.\n    pub conifer: bool,\n",
+            "    pub has_walls: bool,\n",
+            1,
+        ),
     ]
     for regola, testo, atteso, quanti in regole:
         trovato = regola(testo)
@@ -477,17 +560,25 @@ def prova() -> int:
             print(f"{testo!r}: attesi {(atteso, quanti)!r}, trovati {trovato!r}", file=sys.stderr)
             sbagliati += 1
 
-    # Una regola con conteggio dichiarato 2 su un sorgente che ne contiene 1.
-    _, trovati = senza_use_multiriga("use numpy::{\n    A,\n};\n")
-    stderr, sys.stderr = sys.stderr, io.StringIO()
-    try:
-        esito = verifica("x.rs", "use_multiriga", trovati, 2)
-        messaggio = sys.stderr.getvalue()
-    finally:
-        sys.stderr = stderr
-    if esito != 1 or "use_multiriga" not in messaggio:
-        print(f"conteggio che non torna: esito {esito}, messaggio {messaggio!r}", file=sys.stderr)
-        sbagliati += 1
+    # Regole il cui conteggio non torna: dichiarato 2, trovato 1; dichiarato al
+    # pin, trovato zero su un sorgente senza i campi.
+    for regola, trovati, attesi in (
+        ("use_multiriga", senza_use_multiriga("use numpy::{\n    A,\n};\n")[1], 2),
+        (
+            "campi_tolti",
+            senza_campi_tolti("    pub ta: f32,\n")[1],
+            CONTEGGI["campi_tolti"]["pipeline_scalars.rs"],
+        ),
+    ):
+        stderr, sys.stderr = sys.stderr, io.StringIO()
+        try:
+            esito = verifica("x.rs", regola, trovati, attesi)
+            messaggio = sys.stderr.getvalue()
+        finally:
+            sys.stderr = stderr
+        if esito != 1 or regola not in messaggio:
+            print(f"conteggio che non torna: esito {esito}, messaggio {messaggio!r}", file=sys.stderr)
+            sbagliati += 1
     return int(sbagliati > 0)
 
 
@@ -513,6 +604,11 @@ def main() -> int:
         pulito, tolti, tenuti = estrai(pulito, da_tenere, DA_TOGLIERE[nome])
         pulito, campi = senza_attributi_di_campo(pulito)
         pulito, bundles = senza_pub_use_bundles(pulito)
+        pulito, campi_tolti = senza_campi_tolti(pulito)
+        for vecchio, nuovo, attesi in TRASMISSIVITA.get(nome, ()):
+            if verifica(nome, vecchio.strip(), pulito.count(vecchio), attesi):
+                return 1
+            pulito = pulito.replace(vecchio, nuovo)
         pulito, firme, errori = senza_pyresult(pulito)
         pulito, esposti = esponi(pulito, da_esporre)
         righe_residue = residui(pulito)
@@ -530,12 +626,14 @@ def main() -> int:
             f"{nome}: {prima} -> {dopo} righe, {tolti} involucri rimossi, "
             f"{tenuti} tenuti senza attributo, {esposti} elementi esposti, "
             f"{firme} firme e {errori} errori senza PyResult, {multiriga} use a capo, "
-            f"{campi} attributi di campo, {bundles} pub use dei bundle"
+            f"{campi} attributi di campo, {bundles} pub use dei bundle, "
+            f"{campi_tolti} campi tolti"
         )
         for regola, trovati in (
             ("use_multiriga", multiriga),
             ("attributi_di_campo", campi),
             ("pub_use_bundles", bundles),
+            ("campi_tolti", campi_tolti),
         ):
             if verifica(nome, regola, trovati, CONTEGGI[regola].get(nome, 0)):
                 return 1

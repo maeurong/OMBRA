@@ -98,19 +98,23 @@ elementi_esposti = ["crop_svf_intermediate", "compute_wall_aspect_pure"]
 attributi_tolti = [
     "utci_single", "WeatherScalars", "HumanScalars", "ConfigScalars",
 ]
-regole_a_conteggio = { use_a_capo = 1, attributi_di_campo = 34, pub_use_dei_bundle = 1 }
+regole_a_conteggio = { use_multiriga = 1, attributi_di_campo = 34, pub_use_bundles = 1, campi_tolti = 2 }
 nota_regole = """
-Tre regole nuove, ciascuna con il conteggio dichiarato in `estrai.py` (`CONTEGGI`):
-lo script si ferma, nominando la regola, se a monte scattano di piu' o di meno.
+Quattro regole, ciascuna con il conteggio dichiarato in `estrai.py` (`CONTEGGI`),
+con gli stessi nomi: lo script si ferma, nominando la regola, se a monte scattano
+di piu' o di meno.
 
-- `use_a_capo` (1, `sky.rs`): un `use numpy::{…};` che va a capo. Togliere la
+- `use_multiriga` (1, `sky.rs`): un `use numpy::{…};` che va a capo. Togliere la
   sola prima riga lascerebbe l'elenco, che non compila.
 - `attributi_di_campo` (34, `pipeline_scalars.rs`): le righe `#[pyo3(get, set)]`
   sui campi delle tre struct degli scalari, che restano come struct Rust.
-- `pub_use_dei_bundle` (1, `pipeline.rs`): `pub use crate::pipeline_bundles::{…};`
+- `pub_use_bundles` (1, `pipeline.rs`): `pub use crate::pipeline_bundles::{…};`
   con il commento che lo introduce, perche' `pipeline_bundles` non e' nella
   chiusura. Non sta in `DA_TOGLIERE`: l'elenco chiude con `};` e quella regola
   cerca `}`, quindi cancellerebbe in silenzio il codice seguente.
+- `campi_tolti` (2, `pipeline_scalars.rs`): i campi `psi` e `conifer`, con i
+  commenti `///` che li precedessero (al pin non ce ne sono). Fa parte della
+  trasformazione di ADR 0004, descritta sotto `[trasformazione_additiva]`.
 
 Le tre struct degli scalari (`WeatherScalars`, `HumanScalars`, `ConfigScalars`)
 perdono `#[pyclass]` e i blocchi `#[pymethods]` e tengono i campi: stanno in
@@ -181,9 +185,70 @@ tre escono dall'estrazione già `pub`. Al passaggio a 0.1.0b101 lo script si è
 fermato su `shadowing.rs`, «attesi 2 elementi da esporre, promossi 0», ed è lì
 che l'elenco è stato riletto.
 
-Nient'altro è toccato: le righe rimaste sono identiche a quelle di monte,
-intestazioni di licenza e commenti compresi. È la condizione che rende
-riconciliabile un aggiornamento.
+Fuori dalla trasformazione additiva di ADR 0004, descritta sotto
+`[trasformazione_additiva]`, nient'altro è toccato: le righe rimaste sono
+identiche a quelle di monte, intestazioni di licenza e commenti compresi. È la
+condizione che rende riconciliabile un aggiornamento.
+"""
+
+[trasformazione_additiva]
+adr = "docs/adr/0004-psi-per-cella.md"
+righe_sostituite = { "pipeline.rs" = 3, "pipeline_radiation.rs" = 3, "vegetation.rs" = 5 }
+righe_aggiunte = { "pipeline.rs" = 2, "pipeline_inputs.rs" = 4 }
+righe_tolte = { "pipeline_scalars.rs" = 2 }
+nota = """
+La prima modifica di significato nella copia: la trasmissività delle chiome
+entra per cella, come due raster, al posto dello scalare `weather.psi`, che a
+monte vale per l'intera griglia. La fa `estrai.py`, con le regole di
+`TRASMISSIVITA`; ogni regola dichiara quante volte deve trovare il proprio
+testo di monte, e lo script si ferma al primo conteggio che non torna. La
+condizione dell'ADR: con i due raster costanti, uguali allo scalare, il passo
+deve dare le uscite di monte byte per byte. Su 41840b7 non è ancora misurata:
+la misura dell'ADR è a 0.1.0b98 e su una sostituzione fatta a mano.
+
+Le undici righe sostituite, citate al pin 41840b7:
+
+- `pipeline.rs:679`, lungo il raggio: `(1.0 - weather.psi)` diventa
+  `(1.0 - &trasmissivita_raggio_v)`, elemento per elemento sul raster;
+- `pipeline.rs:761` e `:1318`, verso il cielo: `let psi = weather.psi;` diventa
+  `let psi = trasmissivita_cielo_v;`;
+- `pipeline_radiation.rs:379`, firma di `compute_ani_lum_from_packed`:
+  `psi: f32` diventa `psi: ArrayView2<f32>`;
+- `pipeline_radiation.rs:403` e `:422`, nel corpo: `(1.0 - psi)` diventa
+  `(1.0 - psi[[r, c]])`, la cella del ciclo (`r` e `c` da `idx` nel ramo
+  parallelo, dai due `for` nel ripiego);
+- `vegetation.rs:363`, firma di `kside_veg_isotropic_pure`: `psi: f32` diventa
+  `psi: ArrayView2<f32>`;
+- `vegetation.rs:413`, `:415`, `:417`, `:419`, nel corpo: `(1.0 - psi)` diventa
+  `(1.0 - psi[(r, c)])`, con l'indice che le righe accanto usano già.
+
+In `vegetation.rs` i testi contano dopo l'estrazione: la gemella
+`#[pyfunction] kside_veg` (`:730`, `:803-809` al pin) porta gli stessi testi ed
+è già tolta, quindi ciascuna regola li trova una volta e quattro, non due e otto.
+
+Le righe aggiunte sono l'ingresso dei due raster: in `pipeline_inputs.rs` i
+campi `trasmissivita_raggio` e `trasmissivita_cielo` di `TimestepInputs`, dopo
+`vbshmat` (`:113`), ciascuno con una riga di commento; in `pipeline.rs` le
+legature `trasmissivita_raggio_v` e `trasmissivita_cielo_v`, dopo
+`let vbshmat_v = inputs.vbshmat;` (`:638`). Le righe tolte sono i campi
+`WeatherScalars.psi` (`pipeline_scalars.rs:43`), che dopo la sostituzione nessuna
+riga compilata legge, e `ConfigScalars.conifer` (`:152`), che non legge nessuno
+già a monte.
+
+Le chiamate non si toccano: leggono il nome `psi` e seguono la legatura. Sono
+quattro fuori dalla feature `gpu` (`pipeline.rs:797`, `:1025` nel ramo dello
+schema di suolo 2026a, `:1638`, `:1742`) e una dentro: `ctx.dispatch_begin`
+(`:1486-1509`), che passa `psi` allo shader come scalare. Con la feature accesa
+quella chiamata riceverebbe un raster e non compilerebbe. Non si corregge: la
+feature non è dichiarata nel manifesto, e il percorso GPU non compila comunque.
+Anche i blocchi `#[cfg(feature = "gpu")]` rimasti in `gvf.rs` (`:557` al pin) e
+in `gvf_geometry.rs` (`:385`) nominano `crate::gpu`, che non è vendorato: sono
+codice morto e non compilabile per costruzione, come gli `use crate::gpu::…` di
+`pipeline.rs` (`:28`, `:30`).
+
+La forma dei due raster non è controllata: come gli altri raster del passo
+devono avere la forma del DSM (`pipeline_inputs.rs:8`), e
+`validate_timestep_inputs` controlla soltanto le matrici d'ombra.
 """
 
 [come_si_rifa]
@@ -278,9 +343,9 @@ questo numero dice che il collo di bottiglia non sarà qui.
 righe = """
 api.rs 29 -> 29, emissivity_models.rs 29 -> 29, ground.rs 500 -> 233,
 ground_surface.rs 789 -> 615, gvf.rs 776 -> 559, gvf_geometry.rs 509 -> 509,
-patch_radiation.rs 250 -> 250, perez.rs 446 -> 421, pipeline.rs 2221 -> 1544,
-pipeline_inputs.rs 122 -> 122, pipeline_radiation.rs 432 -> 432,
-pipeline_scalars.rs 193 -> 60, shadowing.rs 974 -> 683, sky.rs 858 -> 575,
+patch_radiation.rs 250 -> 250, perez.rs 446 -> 421, pipeline.rs 2221 -> 1546,
+pipeline_inputs.rs 122 -> 126, pipeline_radiation.rs 432 -> 432,
+pipeline_scalars.rs 193 -> 58, shadowing.rs 974 -> 683, sky.rs 858 -> 575,
 skyview.rs 1103 -> 870, sun.rs 512 -> 512, sunlit_shaded_patches.rs 33 -> 33,
 tmrt.rs 244 -> 143, utci.rs 366 -> 297, vegetation.rs 1239 -> 516,
 wall_aspect.rs 459 -> 373

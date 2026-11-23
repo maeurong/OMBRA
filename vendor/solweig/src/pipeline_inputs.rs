@@ -111,6 +111,10 @@ pub struct TimestepInputs<'a> {
     pub shmat: Option<ArrayView3<'a, u8>>,
     pub vegshmat: Option<ArrayView3<'a, u8>>,
     pub vbshmat: Option<ArrayView3<'a, u8>>,
+    /// Canopy transmissivity along the sun's beam, per pixel (OMBRA ADR 0004).
+    pub trasmissivita_raggio: ArrayView2<'a, f32>,
+    /// Canopy transmissivity towards the sky vault, per pixel (OMBRA ADR 0004).
+    pub trasmissivita_cielo: ArrayView2<'a, f32>,
     pub state: ThermalStateViews<'a>,
     pub ground_scheme: Option<GroundSchemeViews<'a>>,
     /// 1 = compute this pixel, 0 = nodata.

@@ -287,6 +287,8 @@ fn timestep_physics(inputs: &TimestepInputs) -> TimestepResultRaw {
     let shmat_v = inputs.shmat;
     let vegshmat_v = inputs.vegshmat;
     let vbshmat_v = inputs.vbshmat;
+    let trasmissivita_raggio_v = inputs.trasmissivita_raggio;
+    let trasmissivita_cielo_v = inputs.trasmissivita_cielo;
     let want_shadow = (inputs.output_mask & OUT_SHADOW) != 0;
     let want_kdown = (inputs.output_mask & OUT_KDOWN) != 0;
     let want_kup = (inputs.output_mask & OUT_KUP) != 0;
@@ -327,7 +329,7 @@ fn timestep_physics(inputs: &TimestepInputs) -> TimestepResultRaw {
     let bldg_sh = &shadow_result.bldg_sh;
     let shadow = if config.use_veg {
         let veg_sh = &shadow_result.veg_sh;
-        bldg_sh - &((1.0 - veg_sh) * (1.0 - weather.psi))
+        bldg_sh - &((1.0 - veg_sh) * (1.0 - &trasmissivita_raggio_v))
     } else {
         bldg_sh.clone()
     };
@@ -409,7 +411,7 @@ fn timestep_physics(inputs: &TimestepInputs) -> TimestepResultRaw {
         let rad_i = weather.direct_rad;
         let rad_d = weather.diffuse_rad;
         let rad_g = weather.global_rad;
-        let psi = weather.psi;
+        let psi = trasmissivita_cielo_v;
         let cyl = human.is_standing;
 
         let use_aniso = config.use_anisotropic
@@ -966,7 +968,7 @@ fn timestep_physics(inputs: &TimestepInputs) -> TimestepResultRaw {
     let rad_i = weather.direct_rad;
     let rad_d = weather.diffuse_rad;
     let rad_g = weather.global_rad;
-    let psi = weather.psi;
+    let psi = trasmissivita_cielo_v;
     let cyl = human.is_standing;
 
     // F_sh (cylindric wedge shadow fraction) — shared by both paths
