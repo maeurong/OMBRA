@@ -55,7 +55,9 @@ lo stesso errore, e il confronto gli darebbe ragione.
 - `con_trasmissivita_costanti_il_passo_e_monte_bit_per_bit`: raggio e cielo a
   0,03, monte con `psi = 0.03`. Per ogni Ora, `tmrt`, `shadow`, `kdown`, `kup`,
   `ldown`, `lup` con gli stessi bit; dopo la sesta, `timeadd` e i sei raster dello
-  Stato termico.
+  Stato termico. Lo Stato termico passa da un'Ora all'altra come lo passa monte
+  (`pysrc/solweig/computation.py:723-727`): dopo un'Ora di giorno
+  `firstdaytime = 0`, e il passo legge la storia che riceve.
 - `raggio_e_cielo_non_si_scambiano`: raggio a 0,5, cielo a 0,03. `shadow` uguale
   a monte con `psi = 0.5`, `kdown` sotto la chioma diverso.
 - `la_trasmissivita_si_legge_cella_per_cella`: raggio a 0,03 a ovest e a 0,5 a
@@ -64,7 +66,10 @@ lo stesso errore, e il confronto gli darebbe ragione.
   cielo a 0,03 a ovest e a 0,5 a est, con il cielo anisotropo e con quello
   isotropo. In ogni Ora, ciascuna metà di `shadow` e `kdown` uguale a monte con il
   proprio `psi`. `tmrt`, `kup`, `ldown` e `lup` si confrontano solo nell'Ora in cui
-  l'ombra non dipende da `psi`, l'ultima, col sole sotto i 3 gradi.
+  l'ombra non dipende da `psi`, l'ultima, col sole sotto i 3 gradi. Qui
+  `firstdaytime` resta a 1, e il passo non legge la storia: portata come nel
+  primo caso, la storia delle Ore di sole entrerebbe nell'ultima, che non sarebbe
+  più esatta.
 
 ## Cosa non vede
 
@@ -75,7 +80,22 @@ lo stesso errore, e il confronto gli darebbe ragione.
   dalla mezzeria basta a renderle esatte.
 - Uno scambio fra raggio e cielo nel quarto caso, dove i due raster sono uguali.
   Lo vede il secondo caso.
+- La storia dello Stato termico nel quarto caso, per la ragione detta sopra. La
+  vede il primo caso.
 - La preparazione dei dati di monte. Le chiome arrivano ai due lati con `NaN`
   dove non c'è albero, come le porta uno Strato di chioma; il Python di monte le
   riempirebbe con la quota del suolo (`fill_nan`). Il banco verifica il passo,
   non quella conversione.
+
+## Le letture della Trasmissività che il banco non copre
+
+- `vendor/solweig/src/pipeline.rs:414`, `let psi = trasmissivita_cielo_v;` dentro
+  `if use_scheme` (`:384`): è il ramo dello schema di suolo 2026a, e OMBRA passa
+  sempre `ground_scheme: None`. Non gira né in OMBRA né nel banco.
+- `vendor/solweig/src/pipeline_radiation.rs:422`: è il ripiego per un raster
+  d'uscita non contiguo. Il raster d'uscita nasce da `Array2::zeros` (`:384`) ed è
+  sempre contiguo, quindi gira il ramo di `:403` e quel ripiego non gira mai, né
+  in OMBRA né nel banco.
+- `vendor/solweig/src/vegetation.rs:411`, `:413`, `:415`, `:417`, le direzioni E, S,
+  W e N: le mutazioni provate le cambiano tutte e quattro insieme. Un errore in
+  una direzione sola non è stato provato.

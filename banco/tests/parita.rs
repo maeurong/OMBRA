@@ -200,8 +200,7 @@ fn le_sei_ore() -> Vec<WeatherScalars> {
 
 /// Upstream's initial state, `pysrc/solweig/models/state.py:61-83`, with
 /// `timestep_dec` at the hour `timeseries.py:587-588` sets right after.
-/// `firstdaytime` and `timestep_dec` stay at these values for every Ora, on
-/// both sides.
+/// `timestep_dec` stays at this value for every Ora, on both sides.
 fn stato_iniziale() -> StatoTermico {
     StatoTermico {
         firstdaytime: 1,
@@ -487,6 +486,20 @@ impl LatoMonte {
     }
 }
 
+/// What upstream's Python does to the state after each step,
+/// `pysrc/solweig/computation.py:723-727`: after a day Ora the next is not the
+/// first of the day, so the step reads the history it carries; after a night
+/// Ora it is, and the delay starts again. Applied on both sides.
+fn dopo_l_ora(mut stato: StatoTermico, meteo: &WeatherScalars) -> StatoTermico {
+    if meteo.is_daytime {
+        stato.firstdaytime = 0;
+    } else {
+        stato.firstdaytime = 1;
+        stato.timeadd = 0.0;
+    }
+    stato
+}
+
 /// Upstream's output carried into its next Ora, `firstdaytime` and
 /// `timestep_dec` unchanged.
 fn stato_di_monte(precedente: &StatoTermico, esito: &monte::TimestepResultRaw) -> StatoTermico {
@@ -600,8 +613,8 @@ fn con_trasmissivita_costanti_il_passo_e_monte_bit_per_bit() {
             stessi_bit(&format!("Ora {ora}, {nome}"), ombra.view(), monte.view());
         }
 
-        stato_monte = stato_di_monte(&stato_monte, &esito);
-        stato_ombra = o.stato;
+        stato_monte = dopo_l_ora(stato_di_monte(&stato_monte, &esito), meteo);
+        stato_ombra = dopo_l_ora(o.stato, meteo);
     }
 
     assert_eq!(
@@ -837,6 +850,9 @@ fn le_due_trasmissivita_si_leggono_cella_per_cella_in_entrambi_i_cieli() {
                 }
             }
 
+            // `firstdaytime` stays 1, unlike test 1: carried as upstream does,
+            // the history of Ore 1-5, not exact per half, enters Ora 6, and
+            // Tmrt there was measured off in 97 of the 128 western cells.
             stato_ombra = o.stato;
             stato_003 = stato_di_monte(&stato_003, &esito_003);
             stato_05 = stato_di_monte(&stato_05, &esito_05);
