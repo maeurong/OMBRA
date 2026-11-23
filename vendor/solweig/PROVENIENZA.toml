@@ -26,7 +26,7 @@ nota = """
 La chiusura delle dipendenze del passo fuso `compute_timestep_rust`: i ventuno
 moduli di `rust/src/lib.rs` al pin meno `gpu`, `morphology`, `pet` e
 `pipeline_bundles`. Il percorso CPU delle ombre, il polinomio UTCI e lo sky view
-factor c'erano gia'; il resto e' il passo fuso con tutto cio' che chiama:
+factor c'erano già; il resto è il passo fuso con tutto ciò che chiama:
 radiazione, Perez, vista del suolo, temperatura del suolo, temperatura media
 radiante, vegetazione, aspetto dei muri.
 
@@ -58,7 +58,7 @@ Dei 71 involucri, 16 stanno nei tre file presi per primi (`shadowing.rs` 9,
 `tmrt.rs` 3, `vegetation.rs` 5, `wall_aspect.rs` 4. Sono i soliti: `#[pyfunction]`,
 `#[pyclass]` con il suo `#[pymethods]`, piu' tre elementi che nessun attributo
 marca e che lo script nomina: `impl Default for WallAspectRunner`
-(`wall_aspect.rs`) e `unsafe fn allow_threads_unchecked` (`pipeline.rs`), che
+(`wall_aspect.rs`) e `unsafe fn allow_threads_unchecked` (`pipeline.rs`). Questa
 rilascia il GIL per il solo involucro `compute_timestep` e sparisce con lui.
 Il conto per file lo ristampa `estrai.py` a ogni estrazione.
 
@@ -102,14 +102,14 @@ regole_a_conteggio = { use_multiriga = 1, attributi_di_campo = 34, pub_use_bundl
 nota_regole = """
 Quattro regole, ciascuna con il conteggio dichiarato in `estrai.py` (`CONTEGGI`),
 con gli stessi nomi: lo script si ferma, nominando la regola, se a monte scattano
-di piu' o di meno.
+di più o di meno.
 
 - `use_multiriga` (1, `sky.rs`): un `use numpy::{…};` che va a capo. Togliere la
   sola prima riga lascerebbe l'elenco, che non compila.
 - `attributi_di_campo` (34, `pipeline_scalars.rs`): le righe `#[pyo3(get, set)]`
   sui campi delle tre struct degli scalari, che restano come struct Rust.
 - `pub_use_bundles` (1, `pipeline.rs`): `pub use crate::pipeline_bundles::{…};`
-  con il commento che lo introduce, perche' `pipeline_bundles` non e' nella
+  con il commento che lo introduce, perché `pipeline_bundles` non è nella
   chiusura. Non sta in `DA_TOGLIERE`: l'elenco chiude con `};` e quella regola
   cerca `}`, quindi cancellerebbe in silenzio il codice seguente.
 - `campi_tolti` (2, `pipeline_scalars.rs`): i campi `psi` e `conifer`, con i
@@ -118,19 +118,19 @@ di piu' o di meno.
 
 Le tre struct degli scalari (`WeatherScalars`, `HumanScalars`, `ConfigScalars`)
 perdono `#[pyclass]` e i blocchi `#[pymethods]` e tengono i campi: stanno in
-`attributi_tolti` come `utci_single`, perche' e' la stessa regola (`DA_TENERE`).
+`attributi_tolti` come `utci_single`, perché è la stessa regola (`DA_TENERE`).
 
-`compute_wall_aspect_pure` a monte e' `pub(crate)` in un modulo privato: l'unica
+`compute_wall_aspect_pure` a monte è `pub(crate)` in un modulo privato: è l'unica
 promozione che sostituisce `pub(crate)` invece di anteporre `pub`. Gli altri
 elementi che l'interfaccia del passo chiede (`GvfGeometryCache`,
 `precompute_gvf_geometry_cpu`, `compute_timestep_rust`, `TimestepResultRaw` e i
-suoi campi) sono gia' `pub` al pin. `lib.rs` dichiara ogni modulo `pub mod`,
+suoi campi) sono già `pub` al pin. `lib.rs` dichiara ogni modulo `pub mod`,
 `wall_aspect` compreso.
 
 I commenti di monte che nominano `#[new]`, PyO3 o numpy (per esempio
 `pipeline_scalars.rs:4`, `pipeline_inputs.rs:3-5`, i «PyO3 wrapper» in
 `ground.rs`, `gvf.rs`, `sky.rs`, `tmrt.rs`) restano com'erano: sono prosa di
-monte sull'involucro che qui non c'e', e riscriverli renderebbe irriconciliabile
+monte sull'involucro che qui non c'è, e riscriverli renderebbe irriconciliabile
 l'aggiornamento. Il controllo dei residui guarda solo il codice, non i commenti.
 """
 nota_attributi = """
@@ -206,8 +206,8 @@ condizione dell'ADR: con i due raster costanti, uguali allo scalare, il passo
 deve dare le uscite di monte byte per byte. Su 41840b7 la verifica, bit per
 bit, il test `con_trasmissivita_costanti_il_passo_e_monte_bit_per_bit` del
 banco (`banco/tests/parita.rs`), misurato su macOS arm64; su Linux non è
-ancora misurato. La misura dell'ADR è a 0.1.0b98 e su una sostituzione fatta
-a mano.
+ancora misurato. La misura dell'ADR, invece, è a 0.1.0b98 e su una
+sostituzione fatta a mano.
 
 Le undici righe sostituite, citate al pin 41840b7:
 
@@ -218,7 +218,7 @@ Le undici righe sostituite, citate al pin 41840b7:
 - `pipeline_radiation.rs:379`, firma di `compute_ani_lum_from_packed`:
   `psi: f32` diventa `psi: ArrayView2<f32>`;
 - `pipeline_radiation.rs:403` e `:422`, nel corpo: `(1.0 - psi)` diventa
-  `(1.0 - psi[[r, c]])`, la cella del ciclo (`r` e `c` da `idx` nel ramo
+  `(1.0 - psi[[r, c]])`, la cella del ciclo (`r` e `c` vengono da `idx` nel ramo
   parallelo, dai due `for` nel ripiego);
 - `vegetation.rs:363`, firma di `kside_veg_isotropic_pure`: `psi: f32` diventa
   `psi: ArrayView2<f32>`;
@@ -243,7 +243,7 @@ quattro fuori dalla feature `gpu` (`pipeline.rs:797`, `:1025` nel ramo dello
 schema di suolo 2026a, `:1638`, `:1742`) e una dentro: `ctx.dispatch_begin`
 (`:1486-1509`), che passa `psi` allo shader come scalare. Con la feature accesa
 quella chiamata riceverebbe un raster e non compilerebbe. Non si corregge: la
-feature non è dichiarata nel manifesto, e il percorso GPU non compila comunque.
+feature non è dichiarata nel manifesto e il percorso GPU non compila comunque.
 Anche i blocchi `#[cfg(feature = "gpu")]` rimasti in `gvf.rs` (`:557` al pin) e
 in `gvf_geometry.rs` (`:385`) nominano `crate::gpu`, che non è vendorato: sono
 codice morto e non compilabile per costruzione, come gli `use crate::gpu::…` di

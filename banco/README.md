@@ -48,9 +48,8 @@ Un ingresso costruito nel test, 16 × 16 celle a 1 m: un Edificio di 4 × 4 cell
 alto 6 m, un Albero con chioma da 5 a 8 m e zona tronco fino a 2 m, Muri ricavati
 dalla copia vendorata di `compute_wall_aspect_pure`, suolo uniforme ai valori
 della classe 1 di monte, persona in piedi, cielo anisotropo nel secondo e nel terzo caso, entrambi i
-cieli nel primo e nel quarto. Sei Ore del
-21 giugno, dalle 14 alle 20, a 43,07 N 12,55 E. Entrambi i lati girano in un pool
-`rayon` a un thread.
+cieli nel primo e nel quarto. Sei Ore del 21 giugno, dalle 14 alle 20, a 43,07 N
+12,55 E. Entrambi i lati girano in un pool `rayon` a un thread.
 
 I due lati hanno in comune l'ingresso e nient'altro. Il lato di monte ricava con
 le chiamate di monte sky view factor, campi direzionali, matrici d'ombra,
@@ -62,10 +61,10 @@ lo stesso errore, e il confronto gli darebbe ragione.
   0,03, monte con `psi = 0.03`, con il cielo anisotropo e con quello isotropo.
   Per ogni Ora, `tmrt`, `shadow`, `kdown`, `kup`, `ldown`, `lup` con gli stessi
   bit; dopo la sesta, `timeadd` e i sei raster dello Stato termico. Nel cielo
-  isotropo è l'unico caso che confronta `tmrt`, `kup`, `ldown` e `lup` nelle Ore
-  di sole: il quarto li confronta solo nell'ultima. Lo Stato termico passa da un'Ora all'altra come lo passa monte
-  (`pysrc/solweig/computation.py:723-727`): dopo un'Ora di giorno
-  `firstdaytime = 0`, e il passo legge la storia che riceve.
+  isotropo questo è l'unico caso che confronta `tmrt`, `kup`, `ldown` e `lup` nelle
+  Ore di sole: il quarto li confronta solo nell'ultima. Lo Stato termico passa da
+  un'Ora all'altra come lo passa monte (`pysrc/solweig/computation.py:723-727`):
+  dopo un'Ora di giorno `firstdaytime = 0`, e il passo legge la storia che riceve.
 - `raggio_e_cielo_non_si_scambiano`: raggio a 0,5, cielo a 0,03. `shadow` uguale
   a monte con `psi = 0.5`, `kdown` sotto la chioma diverso.
 - `la_trasmissivita_si_legge_cella_per_cella`: raggio a 0,03 a ovest e a 0,5 a
@@ -84,7 +83,7 @@ lo stesso errore, e il confronto gli darebbe ragione.
 - `tmrt`, `kup`, `ldown` e `lup` nelle Ore di sole del quarto caso. Leggono il
   suolo intorno alla cella fino a 22 celle di distanza, quindi su 16 celle
   ciascuna metà risente dell'ombra dell'altra. Misurato: in quelle Ore
-  differiscono da monte fino in tutte le colonne di una metà, e nessuna distanza
+  differiscono da monte in tutte le colonne di una metà, e nessuna distanza
   dalla mezzeria basta a renderle esatte.
 - Uno scambio fra raggio e cielo nel quarto caso, dove i due raster sono uguali.
   Lo vede il secondo caso.
@@ -110,8 +109,8 @@ lo stesso errore, e il confronto gli darebbe ragione.
   sempre `ground_scheme: None`. Non gira né in OMBRA né nel banco.
 - `vendor/solweig/src/pipeline_radiation.rs:422`: è il ripiego per un raster
   d'uscita non contiguo. Il raster d'uscita nasce da `Array2::zeros` (`:384`) ed è
-  sempre contiguo, quindi gira il ramo di `:403` e quel ripiego non gira mai, né
-  in OMBRA né nel banco.
+  sempre contiguo: gira il ramo di `:403`, e il ripiego non gira mai, né in OMBRA
+  né nel banco.
 - `vendor/solweig/src/vegetation.rs:411`, `:413`, `:415`, `:417`, le direzioni E, S,
   W e N: le mutazioni provate le cambiano tutte e quattro insieme. Un errore in
   una direzione sola non è stato provato.

@@ -215,8 +215,8 @@ un binario singolo, senza Python e senza librerie native.
   matrici non si conservano. La struct che porta i direzionali non prende il nome
   Sky view factor: il termine resta i due valori pubblicati.
 - **La Trasmissività verso il cielo diventa un raster**, per Scenario. Vale uno
-  meno il rapporto fra la detrazione, che la 0.3.0 calcola già dalla differenza fra
-  i tre campi, e la volta che le Chiome riunite tolgono (ADR 0006). Dove nessuna
+  meno la detrazione divisa per la volta che le Chiome riunite tolgono (ADR 0006).
+  La 0.3.0 calcola già la detrazione, dalla differenza fra i tre campi. Dove nessuna
   chioma copre la cella vale uno.
 - **La Trasmissività lungo il raggio è un raster per Ora**: il prodotto delle
   trasmissività degli Strati che il raggio attraversa. La produce la Derivazione
@@ -401,10 +401,10 @@ dell'ombra, gli inviluppi, l'Impronta e il cancello dei 60 secondi.
     scalare di `solweig`, Postura in piedi e seduta. Tmrt entro 1e-3 °C dal record.
   - *Bastia com'è*: le specie vere, Postura in piedi, contro la wheel con il `psi`
     che `solweig` calcola per la data, d'estate e anche d'inverno, con un secondo
-    meteo di 48 Ore: d'estate c'è un solo Strato di chioma, e solo l'inverno
-    esercita le due Trasmissività di ADR 0004 (Mario, 2026-11-23). Alla prima generazione si misurano scarto
-    massimo e 95° percentile, e la soglia si fissa poco sopra, con la misura scritta
-    accanto.
+    meteo di 48 Ore. D'estate c'è un solo Strato di chioma e solo l'inverno
+    esercita le due Trasmissività di ADR 0004 (Mario, 2026-11-23). Alla prima
+    generazione si misurano scarto massimo e 95° percentile, e la soglia si fissa
+    poco sopra, con la misura scritta accanto.
   - Il record è il campo Tmrt intero, in `f32` binario con un'intestazione TOML: pin,
     comando, forma, sha256. La UTCI si registra ai Punti.
 - **Lo Stato termico su più passi**: le due Corse attraversano due notti, e coprono
