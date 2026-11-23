@@ -214,10 +214,10 @@ un binario singolo, senza Python e senza librerie native.
   Chiome riunite ([ADR 0006](../../adr/0006-chiome-riunite.md)). Con `isotropo` le
   matrici non si conservano. La struct che porta i direzionali non prende il nome
   Sky view factor: il termine resta i due valori pubblicati.
-- **La Trasmissività verso il cielo diventa un raster**, per Scenario. Si ottiene
-  dividendo la detrazione, che la 0.3.0 calcola già dalla differenza fra i tre
-  campi, per la volta che le Chiome riunite tolgono (ADR 0006). Dove nessuna chioma
-  copre la cella vale uno.
+- **La Trasmissività verso il cielo diventa un raster**, per Scenario. Vale uno
+  meno il rapporto fra la detrazione, che la 0.3.0 calcola già dalla differenza fra
+  i tre campi, e la volta che le Chiome riunite tolgono (ADR 0006). Dove nessuna
+  chioma copre la cella vale uno.
 - **La Trasmissività lungo il raggio è un raster per Ora**: il prodotto delle
   trasmissività degli Strati che il raggio attraversa. La produce la Derivazione
   dalle ombre per Strato, come dice `CONTEXT.md`, e il passo la riceve al posto di
@@ -240,9 +240,10 @@ un binario singolo, senza Python e senza librerie native.
   restano sull'etichetta del record, come a monte. Fra i due algoritmi la
   [ricerca 02](../../ricerca/02-sole-meta-passo.md) misura al più 0,47°: le ombre
   diurne cambiano di poco, e la versione sale.
-- **L'Ora a cavallo dell'alba** si tratta come `solweig`: la radiazione si
-  ripartisce solo con il sole sopra l'orizzonte e la globale sopra zero; con il
-  sole sotto, la diretta va a zero e la globale diventa diffusa.
+- **L'Ora a cavallo dell'alba** si tratta come `solweig` con un file meteo che
+  porta le misure: la diretta e la diffusa sono quelle del file, anche con il sole
+  sotto l'orizzonte al centro dell'Ora (Mario, 2026-11-23). La regola «diretta a
+  zero, globale in diffusa» vale a monte solo senza misure, e un EPW le porta sempre.
 - **Le proprietà del suolo stanno in una tabella nel codice**, come le specie
   ([Da dove vengono albedo, emissività e le temperature del suolo](https://github.com/maeurong/OMBRA/issues/19)).
   Erba alla classe di monte 5, terreno nudo alla 6, pavimentato alla 1, acqua alla
@@ -311,8 +312,10 @@ un binario singolo, senza Python e senza librerie native.
 - **Le tre scelte entrano nell'Impronta.** Oggi l'Impronta prende Griglia, Scenario
   e Periodo; una scelta di Progetto fuori dall'Impronta darebbe lo stesso nome a due
   Corse diverse.
-- **La versione del binario sale** con il commit che porta la catena, come è
-  successo per la 0.2.0 e la 0.3.0: cambiano il sole e il contenuto del Giornale.
+- **La versione del binario sale due volte** (Mario, 2026-11-23), come è successo
+  per la 0.2.0 e la 0.3.0: a 0.4.0 con il commit che porta il sole SPA, che cambia
+  ombre e Giornale già prima della catena, e a 0.5.0 con il commit che porta la
+  catena.
 
 ### Il Giornale
 
@@ -397,7 +400,9 @@ dell'ombra, gli inviluppi, l'Impronta e il cancello dei 60 secondi.
   - *Bastia uniforme*: uno Strato di chioma, trasmissività costante uguale allo
     scalare di `solweig`, Postura in piedi e seduta. Tmrt entro 1e-3 °C dal record.
   - *Bastia com'è*: le specie vere, Postura in piedi, contro la wheel con il `psi`
-    che `solweig` calcola per la data. Alla prima generazione si misurano scarto
+    che `solweig` calcola per la data, d'estate e anche d'inverno, con un secondo
+    meteo di 48 Ore: d'estate c'è un solo Strato di chioma, e solo l'inverno
+    esercita le due Trasmissività di ADR 0004 (Mario, 2026-11-23). Alla prima generazione si misurano scarto
     massimo e 95° percentile, e la soglia si fissa poco sopra, con la misura scritta
     accanto.
   - Il record è il campo Tmrt intero, in `f32` binario con un'intestazione TOML: pin,
