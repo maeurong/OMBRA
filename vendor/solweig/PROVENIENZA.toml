@@ -15,12 +15,26 @@ percorso_sorgente = "rust/src"
 autori = "Fredrik Lindberg (Univ. Göteborg), C. Sue B. Grimmond (Univ. Reading), UMEP Developers"
 
 [cosa_e_stato_preso]
-file = ["shadowing.rs", "utci.rs", "skyview.rs"]
+file = [
+    "api.rs", "emissivity_models.rs", "ground.rs", "ground_surface.rs", "gvf.rs",
+    "gvf_geometry.rs", "patch_radiation.rs", "perez.rs", "pipeline.rs",
+    "pipeline_inputs.rs", "pipeline_radiation.rs", "pipeline_scalars.rs",
+    "shadowing.rs", "sky.rs", "skyview.rs", "sun.rs", "sunlit_shaded_patches.rs",
+    "tmrt.rs", "utci.rs", "vegetation.rs", "wall_aspect.rs",
+]
 nota = """
-Il percorso CPU delle ombre, il polinomio UTCI e il calcolo dello sky view
-factor. Non il resto del nucleo: niente radiazione, niente temperatura media
-radiante, niente PET. Quelli arriveranno quando serviranno, e allora questo
-elenco cresce.
+La chiusura delle dipendenze del passo fuso `compute_timestep_rust`: i ventuno
+moduli di `rust/src/lib.rs` al pin meno `gpu`, `morphology`, `pet` e
+`pipeline_bundles`. Il percorso CPU delle ombre, il polinomio UTCI e lo sky view
+factor c'erano gia'; il resto e' il passo fuso con tutto cio' che chiama:
+radiazione, Perez, vista del suolo, temperatura del suolo, temperatura media
+radiante, vegetazione, aspetto dei muri.
+
+Fuori restano `pipeline_bundles.rs`, che dopo l'estrazione conterrebbe due
+costanti di versione di un protocollo Python e che solo `pipeline.rs` importa; il
+modulo `gpu`, che compare soltanto dietro `#[cfg(feature = "gpu")]`; `morphology`
+e `pet`, che nessuno dei ventuno chiede. Il manifesto non cambia: la chiusura
+compila con `ndarray` e `rayon`.
 
 `skyview.rs` e' il primo file che ha chiesto una classe di trasformazione
 nuova, descritta piu' sotto sotto `sostituzioni`: a monte il percorso Rust
@@ -36,8 +50,18 @@ scelto UTCI: ne esiste un solo polinomio autoritativo.
 """
 
 [cosa_e_stato_tolto]
-involucri_python = 16
+involucri_python = 71
 nota = """
+Dei 71 involucri, 16 stanno nei tre file presi per primi (`shadowing.rs` 9,
+`utci.rs` 1, `skyview.rs` 6) e 55 negli altri: `ground.rs` 4, `ground_surface.rs` 4,
+`gvf.rs` 4, `perez.rs` 2, `pipeline.rs` 16, `pipeline_scalars.rs` 3, `sky.rs` 10,
+`tmrt.rs` 3, `vegetation.rs` 5, `wall_aspect.rs` 4. Sono i soliti: `#[pyfunction]`,
+`#[pyclass]` con il suo `#[pymethods]`, piu' tre elementi che nessun attributo
+marca e che lo script nomina: `impl Default for WallAspectRunner`
+(`wall_aspect.rs`) e `unsafe fn allow_threads_unchecked` (`pipeline.rs`), che
+rilascia il GIL per il solo involucro `compute_timestep` e sparisce con lui.
+Il conto per file lo ristampa `estrai.py` a ogni estrazione.
+
 Da `utci.rs`: il solo `utci_grid`, che prende e restituisce array numpy. Il
 polinomio, la pressione di vapore saturo e `utci_single` restano.
 
@@ -70,8 +94,41 @@ dentro il modulo `gpu` di monte.
 """
 
 [modifiche_al_codice_rimasto]
-elementi_esposti = ["crop_svf_intermediate"]
-attributi_tolti = ["utci_single"]
+elementi_esposti = ["crop_svf_intermediate", "compute_wall_aspect_pure"]
+attributi_tolti = [
+    "utci_single", "WeatherScalars", "HumanScalars", "ConfigScalars",
+]
+regole_a_conteggio = { use_a_capo = 1, attributi_di_campo = 34, pub_use_dei_bundle = 1 }
+nota_regole = """
+Tre regole nuove, ciascuna con il conteggio dichiarato in `estrai.py` (`CONTEGGI`):
+lo script si ferma, nominando la regola, se a monte scattano di piu' o di meno.
+
+- `use_a_capo` (1, `sky.rs`): un `use numpy::{…};` che va a capo. Togliere la
+  sola prima riga lascerebbe l'elenco, che non compila.
+- `attributi_di_campo` (34, `pipeline_scalars.rs`): le righe `#[pyo3(get, set)]`
+  sui campi delle tre struct degli scalari, che restano come struct Rust.
+- `pub_use_dei_bundle` (1, `pipeline.rs`): `pub use crate::pipeline_bundles::{…};`
+  con il commento che lo introduce, perche' `pipeline_bundles` non e' nella
+  chiusura. Non sta in `DA_TOGLIERE`: l'elenco chiude con `};` e quella regola
+  cerca `}`, quindi cancellerebbe in silenzio il codice seguente.
+
+Le tre struct degli scalari (`WeatherScalars`, `HumanScalars`, `ConfigScalars`)
+perdono `#[pyclass]` e i blocchi `#[pymethods]` e tengono i campi: stanno in
+`attributi_tolti` come `utci_single`, perche' e' la stessa regola (`DA_TENERE`).
+
+`compute_wall_aspect_pure` a monte e' `pub(crate)` in un modulo privato: l'unica
+promozione che sostituisce `pub(crate)` invece di anteporre `pub`. Gli altri
+elementi che l'interfaccia del passo chiede (`GvfGeometryCache`,
+`precompute_gvf_geometry_cpu`, `compute_timestep_rust`, `TimestepResultRaw` e i
+suoi campi) sono gia' `pub` al pin. `lib.rs` dichiara ogni modulo `pub mod`,
+`wall_aspect` compreso.
+
+I commenti di monte che nominano `#[new]`, PyO3 o numpy (per esempio
+`pipeline_scalars.rs:4`, `pipeline_inputs.rs:3-5`, i «PyO3 wrapper» in
+`ground.rs`, `gvf.rs`, `sky.rs`, `tmrt.rs`) restano com'erano: sono prosa di
+monte sull'involucro che qui non c'e', e riscriverli renderebbe irriconciliabile
+l'aggiornamento. Il controllo dei residui guarda solo il codice, non i commenti.
+"""
 nota_attributi = """
 `utci_single` porta `#[pyfunction]` ma non e' un involucro: il corpo converte
 l'umidita' relativa in pressione di vapore e chiama il polinomio, e Python
@@ -218,7 +275,16 @@ Una chiamata su 50x50 con una torre al centro, in release: 47 ms a freddo, poi
 44, 45 e 11 ms. Il cancello dei 60 secondi chiede quattro Corse da 48 ore, e
 questo numero dice che il collo di bottiglia non sarà qui.
 """
-righe = "shadowing.rs 974 -> 683, utci.rs 366 -> 297, skyview.rs 1103 -> 870"
+righe = """
+api.rs 29 -> 29, emissivity_models.rs 29 -> 29, ground.rs 500 -> 233,
+ground_surface.rs 789 -> 615, gvf.rs 776 -> 559, gvf_geometry.rs 509 -> 509,
+patch_radiation.rs 250 -> 250, perez.rs 446 -> 421, pipeline.rs 2221 -> 1544,
+pipeline_inputs.rs 122 -> 122, pipeline_radiation.rs 432 -> 432,
+pipeline_scalars.rs 193 -> 60, shadowing.rs 974 -> 683, sky.rs 858 -> 575,
+skyview.rs 1103 -> 870, sun.rs 512 -> 512, sunlit_shaded_patches.rs 33 -> 33,
+tmrt.rs 244 -> 143, utci.rs 366 -> 297, vegetation.rs 1239 -> 516,
+wall_aspect.rs 459 -> 373
+"""
 utci = """
 Nell'ambiente di riferimento di UTCI — aria ferma a 0,5 m/s, temperatura media
 radiante uguale a quella dell'aria, pressione di vapore al riferimento — il

@@ -1060,3 +1060,25 @@ fn dove_due_strati_condividono_delle_celle_nessuna_quota_di_volta_esce_negativa(
         media(&due.con_le_chiome)
     );
 }
+
+/// Compile-time only: the fused timestep and the wall aspect are reachable from
+/// a crate outside `vendor/`. `pub(crate)` would pass from inside the copy.
+#[test]
+fn la_copia_espone_cio_che_il_passo_chiede() {
+    use solweig_vendorato::api::{
+        compute_timestep_rust, precompute_gvf_geometry_cpu, ConfigScalars, GvfGeometryCache,
+        HumanScalars, TimestepInputs, TimestepResultRaw, WeatherScalars, OUT_ALL,
+    };
+    use solweig_vendorato::wall_aspect::compute_wall_aspect_pure;
+
+    let _ = compute_timestep_rust as fn(&TimestepInputs) -> Result<TimestepResultRaw, String>;
+    let _ = precompute_gvf_geometry_cpu;
+    let _ = compute_wall_aspect_pure;
+    let _: u32 = OUT_ALL;
+    let _: Option<(
+        WeatherScalars,
+        HumanScalars,
+        ConfigScalars,
+        GvfGeometryCache,
+    )> = None;
+}
