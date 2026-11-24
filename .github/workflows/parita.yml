@@ -54,9 +54,10 @@ jobs:
         run: bash banco/prepara.sh
 
       # After the clone: cargo reads banco's manifest, which names the clone
-      # as a path dependency.
+      # as a path dependency. `-p banco` keeps rustfmt out of the clone, which
+      # sits under banco/ and is upstream's code, not ours to format.
       - name: Formatting
-        run: cargo fmt --manifest-path banco/Cargo.toml --check
+        run: cargo fmt --manifest-path banco/Cargo.toml -p banco --check
 
       - name: Parity tests
         run: cargo test --manifest-path banco/Cargo.toml --release --locked
