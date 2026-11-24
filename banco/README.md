@@ -32,7 +32,7 @@ parità di bit è fra i due nuclei sullo stesso insieme di dipendenze.
 | Macchina | Via | Python | Profilo | Esito |
 |---|---|---|---|---|
 | macOS 27.2.1 arm64, rustc 1.99.1 di Homebrew | A2 | `/opt/homebrew/bin/python`, 3.14.10 di Homebrew (framework, `libpython3.14`) | `test` e `release` | collega e passa i quattro casi |
-| `ubuntu-latest` | A2 | 3.12 di `actions/setup-python` | `release` | da misurare: serve il primo giro del lavoro `parita` |
+| `ubuntu-latest` (immagine ubuntu-26.04, x86_64), rustc 1.100.0 stable | A2 | 3.12.16 di `actions/setup-python` (`Py_ENABLE_SHARED 1`) | `release` | collega e passa i quattro casi (lavoro `parita`, commit `61ad534`, 2026-11-24) |
 
 Su macOS `pyo3` ha scelto `python` (3.14) e non `python3` (3.15), perché cerca
 in quest'ordine: `PYO3_PYTHON`, `python`, `python3`. `otool -L` sul binario di

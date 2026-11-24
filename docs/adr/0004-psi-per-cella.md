@@ -185,9 +185,9 @@ confronta il passo della copia vendorata, con i due raster costanti a 0,03, con
 `compute_timestep_rust` di monte al pin `41840b7`, che prende `psi = 0.03`. Gira sei Ore
 con il cielo anisotropo e sei con quello isotropo, e richiede gli stessi bit in `tmrt`, `shadow`,
 `kdown`, `kup`, `ldown` e `lup` di ogni Ora, poi in `timeadd` e nei sei raster dello Stato
-termico dopo la sesta. Passa su macOS arm64. Su Linux non è ancora misurato: serve il primo
-giro del lavoro `parita` (`.github/workflows/parita.yml`).
+termico dopo la sesta. Passa su macOS arm64 e, nel lavoro `parita`
+(`.github/workflows/parita.yml`), su `ubuntu-latest` x86_64 con rustc 1.100.0 (2026-11-24).
 
 Dell'elenco «Cosa la misura lascia fuori» il banco chiude il pin, `estrai.py` con la funzione
-nominata, i due raster diversi fra loro e lo Stato termico dopo l'ultima Ora. Restano fuori
-il ramo 2026a, Bastia e una seconda macchina.
+nominata, i due raster diversi fra loro, lo Stato termico dopo l'ultima Ora e la seconda
+macchina. Restano fuori il ramo 2026a e Bastia.
