@@ -1,0 +1,63 @@
+# The parity bench (banco/): OMBRA's vendored step against upstream's own,
+# cloned at the pin of vendor/solweig/PROVENIENZA.toml, bit for bit. It builds
+# pyo3 and links libpython, which is why it is a workflow of its own: the CI
+# job `verifica` stays without Python.
+name: Parità con monte
+
+on:
+  pull_request:
+    paths:
+      - "vendor/**"
+      - "src/motore.rs"
+      - "src/derivazione.rs"
+      - "banco/**"
+      # A change to this file must run it, as vendor-check.yml does for itself.
+      - ".github/workflows/parita.yml"
+  workflow_dispatch:
+
+# It clones an outside repository and compiles it: read scope only, and no
+# secret in its environment.
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # No global RUSTFLAGS: it would reach vendor/solweig and the clone too, and
+  # make other people's warnings our errors (af47339).
+
+jobs:
+  parita:
+    name: parità con monte
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      # A Python with a shared libpython, at build and at run time: route A2
+      # of docs/ricerca/05-crate-rlib.md links against it.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: banco
+
+      # Fails when the clone or the manifest edit fails: a bench that skipped
+      # itself would be green without comparing anything.
+      - name: Clone upstream at the pin
+        run: bash banco/prepara.sh
+
+      # After the clone: cargo reads banco's manifest, which names the clone
+      # as a path dependency. `-p banco` keeps rustfmt out of the clone, which
+      # sits under banco/ and is upstream's code, not ours to format.
+      - name: Formatting
+        run: cargo fmt --manifest-path banco/Cargo.toml -p banco --check
+
+      - name: Parity tests
+        run: cargo test --manifest-path banco/Cargo.toml --release --locked

@@ -27,6 +27,12 @@ per un letterale e per un `format!`, dentro e fuori dal percorso GPU. Il
 conteggio atteso è dichiarato per file: se a monte cambia, lo script si ferma
 invece di sostituire meno del previsto.
 
+E ne cambia una seconda, che e' di significato: la trasmissivita' delle chiome
+entra per cella, come due raster, al posto dello scalare `weather.psi` (ADR 0004
+di OMBRA, regole in `TRASMISSIVITA`), e i campi `psi` e `conifer` escono dagli
+scalari. Con i due raster costanti il passo deve dare le uscite di monte byte
+per byte.
+
 **La trappola.** Quegli elementi sono spesso preceduti da `#[cfg(feature =
 "gpu")]` o da doc-comment. Togliendo solo la funzione, l'attributo resta
 orfano e si attacca all'elemento seguente: nel caso reale questo cancellava in
@@ -39,14 +45,42 @@ feature non è dichiarata nel manifesto vendorato: si compila fuori da sé.
 
 Uso:
     python3 vendor/solweig/estrai.py <clone-di-solweig> [destinazione]
+    python3 vendor/solweig/estrai.py --prova
 """
 
+import io
 import re
 import sys
 from pathlib import Path
 
-# I file di monte che OMBRA riusa, e nient'altro.
-FILE = ["shadowing.rs", "utci.rs", "skyview.rs"]
+# I file di monte che OMBRA riusa: la chiusura delle dipendenze del passo fuso
+# `compute_timestep_rust`, cioe' i moduli di `rust/src/lib.rs` meno `gpu`,
+# `morphology`, `pet` e `pipeline_bundles`. Ogni file ha una voce in ogni lista
+# qui sotto, anche vuota: un file senza voce fa fermare lo script (KeyError)
+# invece di entrare senza che nessuno abbia deciso cosa togliergli.
+FILE = [
+    "api.rs",
+    "emissivity_models.rs",
+    "ground.rs",
+    "ground_surface.rs",
+    "gvf.rs",
+    "gvf_geometry.rs",
+    "patch_radiation.rs",
+    "perez.rs",
+    "pipeline.rs",
+    "pipeline_inputs.rs",
+    "pipeline_radiation.rs",
+    "pipeline_scalars.rs",
+    "shadowing.rs",
+    "sky.rs",
+    "skyview.rs",
+    "sun.rs",
+    "sunlit_shaded_patches.rs",
+    "tmrt.rs",
+    "utci.rs",
+    "vegetation.rs",
+    "wall_aspect.rs",
+]
 
 # Elementi che a monte sono privati e che qui diventano `pub`. La promozione va
 # dichiarata in PROVENIENZA.toml, e si fa qui perche' una patch a mano si
@@ -55,8 +89,28 @@ FILE = ["shadowing.rs", "utci.rs", "skyview.rs"]
 # `calculate_shadows_rust`, `ShadowingResultRust` e `calculate_svf_inner` a
 # monte sono gia' `pub` e non stanno qui: da quando, lo dice PROVENIENZA.toml.
 DA_ESPORRE = {
+    "api.rs": [],
+    "emissivity_models.rs": [],
+    "ground.rs": [],
+    "ground_surface.rs": [],
+    "gvf.rs": [],
+    "gvf_geometry.rs": [],
+    "patch_radiation.rs": [],
+    "perez.rs": [],
+    "pipeline.rs": [],
+    "pipeline_inputs.rs": [],
+    "pipeline_radiation.rs": [],
+    "pipeline_scalars.rs": [],
     "shadowing.rs": [],
+    "sky.rs": [],
+    "sun.rs": [],
+    "sunlit_shaded_patches.rs": [],
+    "tmrt.rs": [],
     "utci.rs": [],
+    "vegetation.rs": [],
+    # A monte e' `pub(crate)` e il modulo e' privato: il passo e il banco la
+    # chiamano da fuori. `esponi` sostituisce la visibilita' invece di anteporla.
+    "wall_aspect.rs": ["pub(crate) fn compute_wall_aspect_pure("],
     # A monte resta privato: lo chiama soltanto un involucro dello stesso file,
     # che l'estrazione toglie. Senza promozione il compilatore lo segnalerebbe
     # come codice morto, e tagliarlo sarebbe una modifica al codice rimasto.
@@ -76,9 +130,33 @@ DA_ESPORRE = {
 # da `vendor/`, dove nessuno la riconoscerebbe come tale al prossimo
 # aggiornamento.
 DA_TENERE = {
+    "api.rs": [],
+    "emissivity_models.rs": [],
+    "ground.rs": [],
+    "ground_surface.rs": [],
+    "gvf.rs": [],
+    "gvf_geometry.rs": [],
+    "patch_radiation.rs": [],
+    "perez.rs": [],
+    "pipeline.rs": [],
+    "pipeline_inputs.rs": [],
+    "pipeline_radiation.rs": [],
+    # Gli scalari del passo: i campi sono Rust, `#[pyclass]` e `#[pymethods]`
+    # sono il solo Python. Perdono l'attributo e i blocchi di metodi.
+    "pipeline_scalars.rs": [
+        "pub struct WeatherScalars",
+        "pub struct HumanScalars",
+        "pub struct ConfigScalars",
+    ],
     "shadowing.rs": [],
-    "utci.rs": ["pub fn utci_single"],
+    "sky.rs": [],
     "skyview.rs": [],
+    "sun.rs": [],
+    "sunlit_shaded_patches.rs": [],
+    "tmrt.rs": [],
+    "utci.rs": ["pub fn utci_single"],
+    "vegetation.rs": [],
+    "wall_aspect.rs": [],
 }
 
 # Involucri che nessun attributo marca, e che quindi vanno nominati: una
@@ -86,12 +164,32 @@ DA_TENERE = {
 # struct che l'estrazione ha appena tolto. Lasciarli dentro non e' un'opzione —
 # il primo nomina Python, il secondo nomina un tipo che non esiste piu'.
 DA_TOGLIERE = {
+    "api.rs": [],
+    "emissivity_models.rs": [],
+    "ground.rs": [],
+    "ground_surface.rs": [],
+    "gvf.rs": [],
+    "gvf_geometry.rs": [],
+    "patch_radiation.rs": [],
+    "perez.rs": [],
+    # Il ponte che rilascia il GIL, usato solo da `compute_timestep`, che e' un
+    # involucro Python e sparisce con il suo attributo.
+    "pipeline.rs": ["unsafe fn allow_threads_unchecked"],
+    "pipeline_inputs.rs": [],
+    "pipeline_radiation.rs": [],
+    "pipeline_scalars.rs": [],
     "shadowing.rs": [],
-    "utci.rs": [],
+    "sky.rs": [],
     "skyview.rs": [
         "fn svf_intermediate_to_py",
         "impl Default for SkyviewRunner",
     ],
+    "sun.rs": [],
+    "sunlit_shaded_patches.rs": [],
+    "tmrt.rs": [],
+    "utci.rs": [],
+    "vegetation.rs": [],
+    "wall_aspect.rs": ["impl Default for WallAspectRunner"],
 }
 
 # Quante firme `PyResult<T>` e quante costruzioni di errore ci si aspetta di
@@ -100,10 +198,85 @@ DA_TOGLIERE = {
 # compare o sparisce, la sostituzione non e' piu' quella descritta in
 # PROVENIENZA.toml e va riletta prima di fidarsene.
 SOSTITUZIONI = {
+    "api.rs": (0, 0),
+    "emissivity_models.rs": (0, 0),
+    "ground.rs": (0, 0),
+    "ground_surface.rs": (0, 0),
+    "gvf.rs": (0, 0),
+    "gvf_geometry.rs": (0, 0),
+    "patch_radiation.rs": (0, 0),
+    "perez.rs": (0, 0),
+    "pipeline.rs": (0, 0),
+    "pipeline_inputs.rs": (0, 0),
+    "pipeline_radiation.rs": (0, 0),
+    "pipeline_scalars.rs": (0, 0),
     "shadowing.rs": (0, 0),
-    "utci.rs": (0, 0),
+    "sky.rs": (0, 0),
     "skyview.rs": (3, 11),
+    "sun.rs": (0, 0),
+    "sunlit_shaded_patches.rs": (0, 0),
+    "tmrt.rs": (0, 0),
+    "utci.rs": (0, 0),
+    "vegetation.rs": (0, 0),
+    "wall_aspect.rs": (0, 0),
 }
+
+# Le regole che riscrivono il testo senza passare dagli elenchi sopra, con
+# quante volte ci si aspetta che scattino in ciascun file. Un file che non
+# compare ne aspetta zero. Come `SOSTITUZIONI`, e' il numero a fermare lo script.
+CONTEGGI = {
+    "use_multiriga": {"sky.rs": 1},
+    "attributi_di_campo": {"pipeline_scalars.rs": 34},
+    "pub_use_bundles": {"pipeline.rs": 1},
+    "campi_tolti": {"pipeline_scalars.rs": 2},
+}
+
+# ADR 0004 di OMBRA: la trasmissivita' delle chiome entra per cella, come due
+# raster, al posto dello scalare `weather.psi`. E' la trasformazione additiva
+# dichiarata in PROVENIENZA.toml. Ogni voce e' testo di monte, testo nuovo e
+# quante volte il testo di monte deve comparire nel file, dopo le rimozioni:
+# in `vegetation.rs` la gemella `#[pyfunction] kside_veg` e' gia' tolta, e i
+# suoi quattro testi uguali non contano.
+#
+# Si sostituiscono le legature `let psi = …`, non le chiamate: le chiamate
+# leggono il nome `psi` e seguono da sole, compresa quella dietro la feature
+# `gpu`, che con un raster al posto di uno scalare non compilerebbe piu'.
+TRASMISSIVITA = {
+    "pipeline_inputs.rs": [
+        (
+            "    pub vbshmat: Option<ArrayView3<'a, u8>>,\n",
+            "    pub vbshmat: Option<ArrayView3<'a, u8>>,\n"
+            "    /// Canopy transmissivity along the sun's beam, per pixel (OMBRA ADR 0004).\n"
+            "    pub trasmissivita_raggio: ArrayView2<'a, f32>,\n"
+            "    /// Canopy transmissivity towards the sky vault, per pixel (OMBRA ADR 0004).\n"
+            "    pub trasmissivita_cielo: ArrayView2<'a, f32>,\n",
+            1,
+        ),
+    ],
+    "pipeline.rs": [
+        (
+            "    let vbshmat_v = inputs.vbshmat;\n",
+            "    let vbshmat_v = inputs.vbshmat;\n"
+            "    let trasmissivita_raggio_v = inputs.trasmissivita_raggio;\n"
+            "    let trasmissivita_cielo_v = inputs.trasmissivita_cielo;\n",
+            1,
+        ),
+        ("* (1.0 - weather.psi))", "* (1.0 - &trasmissivita_raggio_v))", 1),
+        ("let psi = weather.psi;", "let psi = trasmissivita_cielo_v;", 2),
+    ],
+    "pipeline_radiation.rs": [
+        ("    psi: f32,\n", "    psi: ArrayView2<f32>,\n", 1),
+        ("* (1.0 - psi);", "* (1.0 - psi[[r, c]]);", 2),
+    ],
+    "vegetation.rs": [
+        ("    psi: f32,\n", "    psi: ArrayView2<f32>,\n", 1),
+        ("vveg * (1.0 - psi);", "vveg * (1.0 - psi[(r, c)]);", 4),
+    ],
+}
+
+# I campi degli scalari che nessuna riga compilata legge piu': `psi` dopo la
+# sostituzione qui sopra, `conifer` gia' a monte.
+CAMPI_TOLTI = ("pub psi: f32,", "pub conifer: bool,")
 
 
 def dichiarazione(righe: list[str], i: int) -> str:
@@ -218,12 +391,200 @@ def esponi(testo: str, da_esporre: list[str]) -> tuple[str, int]:
     for k, riga in enumerate(righe):
         for elemento in da_esporre:
             if riga.startswith(elemento):
-                righe[k] = f"pub {riga}"
+                # `pub(crate) fn` diventa `pub fn`: anteporre darebbe `pub pub(crate)`.
+                if elemento.startswith("pub(crate) "):
+                    righe[k] = riga.replace("pub(crate) ", "pub ", 1)
+                else:
+                    righe[k] = f"pub {riga}"
                 fatti += 1
     return "\n".join(righe), fatti
 
 
+def senza_use_multiriga(testo: str) -> tuple[str, int]:
+    """Toglie un `use numpy::{…};` o `use pyo3::{…};` che va a capo, fino al `;`.
+
+    `estrai` toglie la riga sola e lascerebbe il resto dell'elenco, che non
+    compila. Quello su una riga sola e' compito suo e non si conta qui.
+    """
+    righe = testo.split("\n")
+    fuori: list[str] = []
+    i = fatti = 0
+    while i < len(righe):
+        riga = righe[i]
+        if riga.startswith(("use numpy::{", "use pyo3::{")) and not riga.rstrip().endswith(";"):
+            while not righe[i].rstrip().endswith(";"):
+                i += 1
+            i += 1
+            fatti += 1
+            continue
+        fuori.append(riga)
+        i += 1
+    return "\n".join(fuori), fatti
+
+
+def senza_attributi_di_campo(testo: str) -> tuple[str, int]:
+    """Toglie le righe `#[pyo3(get, set)]` che restano sui campi delle struct tenute."""
+    righe = testo.split("\n")
+    fuori = [r for r in righe if r.strip() != "#[pyo3(get, set)]"]
+    return "\n".join(fuori), len(righe) - len(fuori)
+
+
+def senza_pub_use_bundles(testo: str) -> tuple[str, int]:
+    """Toglie `pub use crate::pipeline_bundles::{…};` e il commento che lo introduce.
+
+    Non e' un elemento di `DA_TOGLIERE`: `estrai` cerca una graffa chiusa in
+    colonna zero, e questo elenco chiude con `};`. Lo script non si fermerebbe
+    li' e cancellerebbe in silenzio il codice seguente, fino alla prima `}`.
+    """
+    righe = testo.split("\n")
+    fuori: list[str] = []
+    i = fatti = 0
+    while i < len(righe):
+        if righe[i].startswith("pub use crate::pipeline_bundles::{"):
+            arretra(fuori)
+            while righe[i] != "};":
+                i += 1
+            i += 1
+            fatti += 1
+            continue
+        fuori.append(righe[i])
+        i += 1
+    return "\n".join(fuori), fatti
+
+
+def senza_campi_tolti(testo: str) -> tuple[str, int]:
+    """Toglie i campi di `CAMPI_TOLTI` e i commenti `///` che li precedono."""
+    righe = testo.split("\n")
+    fuori: list[str] = []
+    fatti = 0
+    for riga in righe:
+        if riga.strip() in CAMPI_TOLTI:
+            while fuori and fuori[-1].lstrip().startswith("///"):
+                fuori.pop()
+            fatti += 1
+            continue
+        fuori.append(riga)
+    return "\n".join(fuori), fatti
+
+
+def verifica(nome: str, regola: str, trovati: int, attesi: int) -> int:
+    """0 se la regola e' scattata quanto dichiarato, 1 e un messaggio altrimenti."""
+    if trovati == attesi:
+        return 0
+    print(
+        f"{nome}: la regola `{regola}` doveva scattare {attesi} volte, e' scattata {trovati}. "
+        "A monte il sorgente ha cambiato forma: rileggi CONTEGGI prima di fidarti.",
+        file=sys.stderr,
+    )
+    return 1
+
+
+# Identificatori di Python nel codice: guardare le sottostringhe scattava su
+# commenti e letterali, e non vedeva `PyReadonlyArray2` ne' `Python`.
+IDENTIFICATORI_PYTHON = re.compile(r"\b(pyo3|numpy)::|\bPy[A-Z]\w*|\bPython\b|\bBound<|#\[py")
+
+
+def residui(testo: str) -> list[int]:
+    """I numeri di riga (da 1) con codice Python fuori dai commenti `//`.
+
+    Limite noto: taglia anche un `//` dentro un letterale stringa. Il residuo
+    comparirebbe invece di sparire, quindi l'errore sarebbe rumoroso.
+    """
+    return [
+        n
+        for n, riga in enumerate(testo.split("\n"), 1)
+        if IDENTIFICATORI_PYTHON.search(riga.split("//", 1)[0])
+    ]
+
+
+def prova() -> int:
+    """Esegue i casi della regola dei residui. 0 se tornano tutti, 1 altrimenti."""
+    casi = [
+        ("// a numpy view\nlet x = 1;\n", []),
+        ('let s = "contiguous numpy views";\n', []),
+        ("//! Takes PyArray inputs, as upstream does.\nlet x = 1;\n", []),
+        ("use numpy::PyArray2;\n", [1]),
+        ("fn f(a: PyReadonlyArray2<f32>) {}\n", [1]),
+        ("let p: Python = py;\n", [1]),
+        ("fn f(x: Bound<'_, PyAny>) {}\n", [1]),
+        ("#[pyfunction]\nfn f() {}\n", [1]),
+        ("use pyo3::prelude::*;\n", [1]),
+    ]
+    sbagliati = 0
+    for testo, atteso in casi:
+        trovato = residui(testo)
+        if trovato != atteso:
+            print(f"{testo!r}: attesi {atteso}, trovati {trovato}", file=sys.stderr)
+            sbagliati += 1
+
+    # Le regole che riscrivono: sorgente, uscita attesa, quanti elementi toccati.
+    regole = [
+        (senza_use_multiriga, "use numpy::{\n    PyArray2,\n};\nfn f() {}\n", "fn f() {}\n", 1),
+        (
+            senza_attributi_di_campo,
+            "#[pyo3(get, set)]\n    pub ta: f32,\n",
+            "    pub ta: f32,\n",
+            1,
+        ),
+        # Con DA_TOGLIERE la regola cancellerebbe anche `dopo`: `};` non e' `}`.
+        (
+            senza_pub_use_bundles,
+            "pub use crate::pipeline_bundles::{\n    A,\n};\nfn dopo() {\n}\n",
+            "fn dopo() {\n}\n",
+            1,
+        ),
+        (
+            lambda t: esponi(t, ["pub(crate) fn compute_wall_aspect_pure("]),
+            "pub(crate) fn compute_wall_aspect_pure(\n",
+            "pub fn compute_wall_aspect_pure(\n",
+            1,
+        ),
+        # La forma al pin: l'attributo l'ha gia' tolto `senza_attributi_di_campo`.
+        (
+            senza_campi_tolti,
+            "    pub zen_deg: f32,\n    pub psi: f32,\n    pub is_daytime: bool,\n",
+            "    pub zen_deg: f32,\n    pub is_daytime: bool,\n",
+            1,
+        ),
+        # Un commento lasciato sopra un campo tolto descriverebbe il campo seguente.
+        (
+            senza_campi_tolti,
+            "    pub has_walls: bool,\n    /// Never read.\n    pub conifer: bool,\n",
+            "    pub has_walls: bool,\n",
+            1,
+        ),
+    ]
+    for regola, testo, atteso, quanti in regole:
+        trovato = regola(testo)
+        if trovato != (atteso, quanti):
+            print(f"{testo!r}: attesi {(atteso, quanti)!r}, trovati {trovato!r}", file=sys.stderr)
+            sbagliati += 1
+
+    # Regole il cui conteggio non torna: dichiarato 2, trovato 1; dichiarato al
+    # pin, trovato zero su un sorgente senza i campi.
+    for regola, trovati, attesi in (
+        ("use_multiriga", senza_use_multiriga("use numpy::{\n    A,\n};\n")[1], 2),
+        (
+            "campi_tolti",
+            senza_campi_tolti("    pub ta: f32,\n")[1],
+            CONTEGGI["campi_tolti"]["pipeline_scalars.rs"],
+        ),
+    ):
+        stderr, sys.stderr = sys.stderr, io.StringIO()
+        try:
+            esito = verifica("x.rs", regola, trovati, attesi)
+            messaggio = sys.stderr.getvalue()
+        finally:
+            sys.stderr = stderr
+        if esito != 1 or regola not in messaggio:
+            print(f"conteggio che non torna: esito {esito}, messaggio {messaggio!r}", file=sys.stderr)
+            sbagliati += 1
+    return int(sbagliati > 0)
+
+
 def main() -> int:
+    if sys.argv[1:] == ["--prova"]:
+        return prova()
     if len(sys.argv) < 2:
         print(__doc__.strip().split("Uso:")[1].strip(), file=sys.stderr)
         return 2
@@ -239,16 +600,24 @@ def main() -> int:
         da_esporre = DA_ESPORRE[nome]
         da_tenere = DA_TENERE[nome]
         testo = (sorgente / nome).read_text(encoding="utf-8")
-        pulito, tolti, tenuti = estrai(testo, da_tenere, DA_TOGLIERE[nome])
+        pulito, multiriga = senza_use_multiriga(testo)
+        pulito, tolti, tenuti = estrai(pulito, da_tenere, DA_TOGLIERE[nome])
+        pulito, campi = senza_attributi_di_campo(pulito)
+        pulito, bundles = senza_pub_use_bundles(pulito)
+        pulito, campi_tolti = senza_campi_tolti(pulito)
+        for vecchio, nuovo, attesi in TRASMISSIVITA.get(nome, ()):
+            if verifica(nome, vecchio.strip(), pulito.count(vecchio), attesi):
+                return 1
+            pulito = pulito.replace(vecchio, nuovo)
         pulito, firme, errori = senza_pyresult(pulito)
         pulito, esposti = esponi(pulito, da_esporre)
-        residui = sum(
-            1
-            for r in pulito.split("\n")
-            if "pyo3" in r or "numpy" in r or "PyArray" in r or "Py<" in r or "PyResult" in r
-        )
-        if residui:
-            print(f"{nome}: restano {residui} righe che nominano Python", file=sys.stderr)
+        righe_residue = residui(pulito)
+        if righe_residue:
+            print(
+                f"{nome}: restano {len(righe_residue)} righe che nominano Python "
+                f"(da 1): {righe_residue}",
+                file=sys.stderr,
+            )
             return 1
         (destinazione / nome).write_text(pulito, encoding="utf-8")
         prima = len(testo.split("\n"))
@@ -256,8 +625,18 @@ def main() -> int:
         print(
             f"{nome}: {prima} -> {dopo} righe, {tolti} involucri rimossi, "
             f"{tenuti} tenuti senza attributo, {esposti} elementi esposti, "
-            f"{firme} firme e {errori} errori senza PyResult"
+            f"{firme} firme e {errori} errori senza PyResult, {multiriga} use a capo, "
+            f"{campi} attributi di campo, {bundles} pub use dei bundle, "
+            f"{campi_tolti} campi tolti"
         )
+        for regola, trovati in (
+            ("use_multiriga", multiriga),
+            ("attributi_di_campo", campi),
+            ("pub_use_bundles", bundles),
+            ("campi_tolti", campi_tolti),
+        ):
+            if verifica(nome, regola, trovati, CONTEGGI[regola].get(nome, 0)):
+                return 1
         if (firme, errori) != SOSTITUZIONI[nome]:
             attese, attesi = SOSTITUZIONI[nome]
             print(
